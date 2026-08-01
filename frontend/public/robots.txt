@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# 上线前将 example.com 替换为正式域名
+Sitemap: https://example.com/sitemap.xml

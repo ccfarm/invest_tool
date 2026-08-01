@@ -1,0 +1,6 @@
+line-length = 100
+target-version = "py39"
+
+[lint.per-file-ignores]
+# FastAPI 依赖注入的标准写法
+"app/main.py" = ["B008"]

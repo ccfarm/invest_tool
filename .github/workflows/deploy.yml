@@ -1,0 +1,25 @@
+name: 部署到阿里云服务器
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # 支持在 GitHub 页面手动触发
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: SSH 部署到服务器
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            cd /opt/invest_tool
+            git pull --ff-only
+            bash scripts/deploy_server.sh

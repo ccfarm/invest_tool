@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+*.local
+
+# 系统文件
+.DS_Store
+
+# 环境变量
+.env
+
+# 本地数据
+backend/data/
