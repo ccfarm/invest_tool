@@ -76,7 +76,7 @@ onMounted(async () => {
       </div>
       <p v-if="error" class="error">{{ error }}</p>
       <p class="microcap-note">
-        数据每 6 小时自动更新，并自动补齐近 10 个交易日缺失的数据。
+        数据每 6 小时自动更新。
       </p>
     </section>
 
@@ -85,7 +85,7 @@ onMounted(async () => {
     <template v-else-if="snapshot.items.length > 0">
       <div class="results-summary">
         <span>
-          <strong>{{ snapshot.trade_date }}</strong> 交易日落选的微盘股（总市值最低 20 只）
+          <strong>{{ snapshot.trade_date }}</strong> 交易日落选的微盘股（总市值最低 30 只）
         </span>
         <span v-if="avgMktcap != null">
           平均总市值 <strong>{{ fmtCap(avgMktcap) }}</strong>

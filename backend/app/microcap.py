@@ -4,7 +4,7 @@
 筛选逻辑设计（代码注释即设计文档）
 =====================================================================
 
-目标：每个交易日收盘后，选出全 A 股中总市值最低的 20 只"干净"股票，
+目标：每个交易日收盘后，选出全 A 股中总市值最低的 30 只"干净"股票，
 并持久化快照，供页面按钮触发、历史下拉查看。
 
 步骤：
@@ -47,14 +47,14 @@
      后续可扩展为读取公告正文或接入交易所风险名单。
 
 6. 取结果与快照
-   - 剩余候选按总市值升序，取前 20 只。
+   - 剩余候选按总市值升序，取前 30 只。
    - 快照按 trade_date 唯一写入 microcap_snapshots；
      同一天再次触发时直接复用已有快照，不重复计算（refresh_microcap 检查）。
 
 7. 历史缺失补记（backfill_microcap）
    - 每 6 小时定时任务会检查近 10 个交易日是否有缺失快照；
    - 有缺失时按【历史市值】补齐：历史市值 = 当日收盘价（日K）× 总股本
-     （总股本用当前值近似），对候选池逐日重算后取最低 20 只；
+     （总股本用当前值近似），对候选池逐日重算后取最低 30 只；
    - 保证历史下拉里的市值是"该交易日"的市值，而不是当前市值。
 =====================================================================
 """
@@ -225,7 +225,7 @@ def check_announcement_risk(code: str) -> str | None:
     return None
 
 
-def screen_microcap(pool_size: int = 100, top_n: int = 20) -> dict:
+def screen_microcap(pool_size: int = 100, top_n: int = 30) -> dict:
     """执行筛选（步骤 2~6），返回 {trade_date, items, blacklisted}。"""
     items, newly_blacklisted = _screen_items(pool_size, top_n)
     trade_date = get_last_trade_date()
@@ -237,7 +237,7 @@ def screen_microcap(pool_size: int = 100, top_n: int = 20) -> dict:
     }
 
 
-def _screen_items(pool_size: int = 100, top_n: int = 20) -> tuple[list[dict], list[dict]]:
+def _screen_items(pool_size: int = 100, top_n: int = 30) -> tuple[list[dict], list[dict]]:
     """筛选管线（不含交易日判定），返回 (items, newly_blacklisted)。"""
     stocks = fetch_market_stocks_with_cap()
     blacklist = get_blacklisted_codes()
@@ -298,7 +298,7 @@ def backfill_microcap(
     1. 取当前市值最低的前 pool_size 只作为候选池（10 天窗口内微盘股变动有限，覆盖足够）；
     2. 逐只拉取最近日 K 收盘价；
     3. 对每个缺失交易日，用当日收盘价×总股本计算历史市值，
-       排除黑名单 / ST / 退 / PT 后取最低 20 只，存入该交易日快照。
+       排除黑名单 / ST / 退 / PT 后取最低 30 只，存入该交易日快照。
     说明：ST 状态与股本按当前值近似；同日已存在则不覆盖。
     """
     bars = fetch_kline(datalen=days + 5)
@@ -342,7 +342,7 @@ def backfill_microcap(
                 "name": r["name"],
                 "mktcap_yi": round(r["hist_cap"] / 1e8, 2),
             }
-            for i, r in enumerate(rows[:20])
+            for i, r in enumerate(rows[:30])
         ]
         save_microcap_snapshot(d, items)
         filled.append(d)
