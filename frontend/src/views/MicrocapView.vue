@@ -85,7 +85,7 @@ onMounted(async () => {
     <template v-else-if="snapshot.items.length > 0">
       <div class="results-summary">
         <span>
-          <strong>{{ snapshot.trade_date }}</strong> 交易日落选的微盘股（总市值最低 30 只）
+          <strong>{{ snapshot.trade_date }}</strong> 日入选的微盘股（总市值最低 30 只）
         </span>
         <span v-if="avgMktcap != null">
           平均总市值 <strong>{{ fmtCap(avgMktcap) }}</strong>
