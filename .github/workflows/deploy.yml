@@ -22,6 +22,12 @@ jobs:
           script: |
             set -euo pipefail
             cd /opt/invest_tool
+            # 读取服务器环境变量（可覆盖 DATA_DIR/DB_PATH）
+            set -a
+            [ -f /etc/invest-tool.env ] && . /etc/invest-tool.env
+            set +a
+            DATA_DIR="${DATA_DIR:-/var/lib/invest_tool}"
+            DB_FILE="${DB_PATH:-$DATA_DIR/shareholders.db}"
             # 阿里云服务器直连 GitHub 偶发 TLS 断连：HTTP/1.1 + 重试 5 次
             export GIT_TERMINAL_PROMPT=0
             git config http.version HTTP/1.1 || true
@@ -38,13 +44,26 @@ jobs:
               echo "==> git fetch 连续 5 次失败，终止部署"
               exit 1
             fi
-            # 部署前备份数据库，防止 reset/重建误删（保留最近 14 份）
-            mkdir -p /opt/invest_tool_backups
-            if [ -f backend/data/shareholders.db ]; then
-              cp backend/data/shareholders.db \
+            # 数据安全：备份 → 恢复 → 一次性迁移，全部在仓库外进行
+            mkdir -p "$DATA_DIR" /opt/invest_tool_backups
+            if [ -f "$DB_FILE" ]; then
+              cp "$DB_FILE" \
                 "/opt/invest_tool_backups/shareholders-$(date +%Y%m%d-%H%M%S).db"
               ls -1t /opt/invest_tool_backups/shareholders-*.db 2>/dev/null \
                 | tail -n +15 | xargs -r rm -f
+            fi
+            # 若库缺失或为空，先从最近的备份恢复（优先于旧位置遗留文件）
+            if [ ! -s "$DB_FILE" ]; then
+              latest=$(ls -1t /opt/invest_tool_backups/shareholders-*.db 2>/dev/null | head -1 || true)
+              if [ -n "$latest" ]; then
+                echo "==> 数据库缺失，从备份恢复：$latest"
+                cp "$latest" "$DB_FILE"
+              fi
+            fi
+            # 一次性迁移：新位置仍无库且旧位置（仓库内）有库时复制过去
+            if [ ! -f "$DB_FILE" ] && [ -f backend/data/shareholders.db ]; then
+              echo "==> 迁移数据库到 $DB_FILE"
+              cp backend/data/shareholders.db "$DB_FILE"
             fi
             git reset --hard origin/main
             bash scripts/deploy_server.sh

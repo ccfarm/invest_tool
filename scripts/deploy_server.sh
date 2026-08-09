@@ -4,6 +4,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.." # 仓库根目录，默认 /opt/invest_tool
 
+echo "==> 更新 systemd 单元（数据目录固定在仓库外）..."
+cp scripts/invest-tool.service /etc/systemd/system/invest-tool.service
+systemctl daemon-reload
+
 echo "==> 构建前端..."
 cd frontend
 npm ci
