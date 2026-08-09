@@ -38,5 +38,13 @@ jobs:
               echo "==> git fetch 连续 5 次失败，终止部署"
               exit 1
             fi
+            # 部署前备份数据库，防止 reset/重建误删（保留最近 14 份）
+            mkdir -p /opt/invest_tool_backups
+            if [ -f backend/data/shareholders.db ]; then
+              cp backend/data/shareholders.db \
+                "/opt/invest_tool_backups/shareholders-$(date +%Y%m%d-%H%M%S).db"
+              ls -1t /opt/invest_tool_backups/shareholders-*.db 2>/dev/null \
+                | tail -n +15 | xargs -r rm -f
+            fi
             git reset --hard origin/main
             bash scripts/deploy_server.sh

@@ -120,10 +120,17 @@ docker build -t invest-tools .
 docker run -p 8000:8000 invest-tools
 ```
 
+> 数据安全：数据库（默认 `backend/data/shareholders.db`）位于仓库目录内，部署时的
+> `git reset --hard` 不会删除未跟踪文件，但为了保险起见，部署流水线每次都会先把数据库
+> 备份到 `/opt/invest_tool_backups/`（保留最近 14 份）。更稳妥的做法是把数据目录放到
+> 仓库之外，在 `/etc/invest-tool.env` 中设置 `DATA_DIR=/var/lib/invest_tool`，然后
+> 把数据库移到该目录并重启服务。
+
 ### 配置项（环境变量）
 
 | 变量 | 默认值 | 说明 |
 |---|---|---|
+| `DATA_DIR` | `backend/data` | 数据目录（推荐部署到仓库外，如 `/var/lib/invest_tool`） |
 | `TRACK_STOCKS` | `600519,000858,002594,300750` | 股票池（逗号分隔） |
 | `CONCURRENCY` | `6` | 全市场抓取并发数 |
 | `MARKET_PAGE_LIMIT` | `2` | 每只股票抓取页数 |
