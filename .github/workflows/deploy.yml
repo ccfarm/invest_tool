@@ -22,6 +22,21 @@ jobs:
           script: |
             set -euo pipefail
             cd /opt/invest_tool
-            git fetch origin
+            # 阿里云服务器直连 GitHub 偶发 TLS 断连：HTTP/1.1 + 重试 5 次
+            export GIT_TERMINAL_PROMPT=0
+            git config http.version HTTP/1.1 || true
+            fetch_ok=0
+            for i in 1 2 3 4 5; do
+              echo "==> git fetch (attempt $i/5)"
+              if git fetch origin; then
+                fetch_ok=1
+                break
+              fi
+              sleep 5
+            done
+            if [ "$fetch_ok" != "1" ]; then
+              echo "==> git fetch 连续 5 次失败，终止部署"
+              exit 1
+            fi
             git reset --hard origin/main
             bash scripts/deploy_server.sh
