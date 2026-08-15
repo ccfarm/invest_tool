@@ -9,7 +9,7 @@
 
 ## Build, Test, and Development Commands
 
-Use `./start.sh` to install dependencies, build the frontend, and serve the app at `http://localhost:8000`.
+Use `./start.sh` to install dependencies, build the frontend, and serve the app at `http://localhost:80`.
 
 For backend development:
 
@@ -17,7 +17,7 @@ For backend development:
 cd backend
 source .venv/bin/activate
 pip install -r requirements-dev.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 80
 ```
 
 For frontend development:
@@ -33,7 +33,7 @@ Verification commands:
 - `cd backend && python -m pytest`: run the backend test suite.
 - `cd frontend && npm run lint && npm run build`: lint and production-build the frontend.
 - `./scripts/smoke_test.sh`: start the server and verify health, search, page, and SPA fallback.
-- `docker build -t invest-tools . && docker run -p 8000:8000 invest-tools`: container build and run.
+- `docker build -t invest-tools . && docker run -p 80:80 invest-tools`: container build and run.
 
 ## Coding Style & Naming Conventions
 

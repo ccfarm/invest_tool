@@ -29,7 +29,7 @@ else
   pkill -f 'uvicorn app.main:app' || true
   (
     cd backend
-    nohup .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 \
+    nohup .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 80 \
       >/tmp/invest_tool.log 2>&1 &
   )
 fi

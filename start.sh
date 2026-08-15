@@ -17,6 +17,6 @@ if ! backend/.venv/bin/python -c "import fastapi" >/dev/null 2>&1; then
   backend/.venv/bin/pip install -r backend/requirements.txt
 fi
 
-echo "==> 启动服务：http://localhost:8000"
+echo "==> 启动服务：http://localhost:80"
 cd backend
-exec .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+exec .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 80

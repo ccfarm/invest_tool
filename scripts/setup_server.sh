@@ -31,4 +31,4 @@ bash scripts/deploy_server.sh
 systemctl enable invest-tool
 
 IP=$(hostname -I | awk '{print $1}')
-echo "==> 完成：http://${IP}:8000（记得在阿里云安全组放行 8000 端口）"
+echo "==> 完成：http://${IP}:80（记得在阿里云安全组放行 80 端口）"

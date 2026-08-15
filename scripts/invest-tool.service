@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/invest_tool/backend
-ExecStart=/opt/invest_tool/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+ExecStart=/opt/invest_tool/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 80
 # 数据固定在仓库外：部署的 git 重置/重建永不触碰该目录
 Environment=DATA_DIR=/var/lib/invest_tool
 Restart=always

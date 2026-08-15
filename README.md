@@ -50,18 +50,18 @@ Dockerfile       # 容器化部署
 ```
 
 自动构建前端并启动单个后端进程，同时提供页面与 API：
-浏览器访问 http://localhost:8000
+浏览器访问 http://localhost:80
 
 ### 开发模式
 
-后端（端口 8000）：
+后端（端口 80）：
 
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 80
 ```
 
 前端（端口 5173，`/api` 自动代理到后端）：
@@ -101,7 +101,7 @@ python -m app.crawler --market --limit 10  # 调试：只抓前 10 只
 - `GET /api/microcap/latest`：最新一次微盘股筛选结果
 - `GET /api/microcap/dates`：近 20 次微盘股触发日期
 - `GET /api/microcap/history?date=2026-08-07`：按日期查看历史筛选结果
-- 接口文档：http://localhost:8000/docs
+- 接口文档：http://localhost:80/docs
 
 ## 测试与验收
 
@@ -117,7 +117,7 @@ cd frontend && npm run lint && npm run build  # 前端检查与构建
 
 ```bash
 docker build -t invest-tools .
-docker run -p 8000:8000 invest-tools
+docker run -p 80:80 invest-tools
 ```
 
 > 数据安全：systemd 部署时数据库固定在 `/var/lib/invest_tool/`（仓库之外），部署流水线
