@@ -66,14 +66,18 @@ def require_auth(token: str = Depends(require_auth_token)) -> str:
     return find_session_username(token)
 
 
-def _run_scheduled_crawl(stop_event: threading.Event) -> None:
-    """服务进程内的增量爬虫：启动立即执行一次，之后按间隔循环。"""
+def _run_scheduled_crawl(stop_event: threading.Event, startup_delay: float = 60.0) -> None:
+    """服务进程内的增量爬虫：启动延迟 startup_delay 秒后执行一次，之后按间隔循环。"""
     logger.info(
-        "增量爬虫线程已启动：立即执行一次，之后每 %d 秒（%.1f 小时）执行",
+        "增量爬虫线程已启动：%.0f 秒后首次执行，之后每 %d 秒（%.1f 小时）执行",
+        startup_delay,
         SCHEDULE_INTERVAL,
         SCHEDULE_INTERVAL / 3600,
     )
     while not stop_event.is_set():
+        if stop_event.wait(startup_delay):
+            return
+        startup_delay = 0.0
         try:
             crawl_market()
         except Exception:
@@ -81,14 +85,18 @@ def _run_scheduled_crawl(stop_event: threading.Event) -> None:
         stop_event.wait(SCHEDULE_INTERVAL)
 
 
-def _run_scheduled_microcap(stop_event: threading.Event) -> None:
-    """服务进程内的微盘股定时任务：启动立即执行一次，之后每 6 小时执行。"""
+def _run_scheduled_microcap(stop_event: threading.Event, startup_delay: float = 30.0) -> None:
+    """服务进程内的微盘股定时任务：启动延迟 startup_delay 秒后执行一次，之后每 6 小时执行。"""
     logger.info(
-        "微盘股定时任务已启动：立即执行一次，之后每 %d 秒（%.1f 小时）执行",
+        "微盘股定时任务已启动：%.0f 秒后首次执行，之后每 %d 秒（%.1f 小时）执行",
+        startup_delay,
         MICROCAP_INTERVAL,
         MICROCAP_INTERVAL / 3600,
     )
     while not stop_event.is_set():
+        if stop_event.wait(startup_delay):
+            return
+        startup_delay = 0.0
         try:
             scheduled_microcap()
         except Exception:
@@ -96,14 +104,18 @@ def _run_scheduled_microcap(stop_event: threading.Event) -> None:
         stop_event.wait(MICROCAP_INTERVAL)
 
 
-def _run_scheduled_trend(stop_event: threading.Event) -> None:
-    """服务进程内的趋势向上定时任务：启动立即执行一次，之后每 6 小时执行。"""
+def _run_scheduled_trend(stop_event: threading.Event, startup_delay: float = 45.0) -> None:
+    """服务进程内的趋势向上定时任务：启动延迟 startup_delay 秒后执行一次，之后每 6 小时执行。"""
     logger.info(
-        "趋势向上定时任务已启动：立即执行一次，之后每 %d 秒（%.1f 小时）执行",
+        "趋势向上定时任务已启动：%.0f 秒后首次执行，之后每 %d 秒（%.1f 小时）执行",
+        startup_delay,
         TREND_INTERVAL,
         TREND_INTERVAL / 3600,
     )
     while not stop_event.is_set():
+        if stop_event.wait(startup_delay):
+            return
+        startup_delay = 0.0
         try:
             scheduled_trend()
         except Exception:
@@ -119,7 +131,7 @@ async def lifespan(_: FastAPI):
     if os.getenv("ENABLE_SCHEDULED_CRAWL", "1") == "1":
         thread = threading.Thread(
             target=_run_scheduled_crawl,
-            args=(stop_event,),
+            args=(stop_event, 60.0),
             daemon=True,
             name="incremental-crawler",
         )
@@ -129,7 +141,7 @@ async def lifespan(_: FastAPI):
     if os.getenv("ENABLE_SCHEDULED_MICROCAP", "1") == "1":
         thread = threading.Thread(
             target=_run_scheduled_microcap,
-            args=(stop_event,),
+            args=(stop_event, 30.0),
             daemon=True,
             name="microcap-scheduler",
         )
@@ -139,7 +151,7 @@ async def lifespan(_: FastAPI):
     if os.getenv("ENABLE_SCHEDULED_TREND", "1") == "1":
         thread = threading.Thread(
             target=_run_scheduled_trend,
-            args=(stop_event,),
+            args=(stop_event, 45.0),
             daemon=True,
             name="trend-scheduler",
         )
@@ -162,7 +174,8 @@ app.add_middleware(
 
 
 @app.get("/health")
-def health():
+async def health():
+    """健康检查：async 不进线程池，后台任务繁忙时依然可响应。"""
     return {"status": "ok"}
 
 
