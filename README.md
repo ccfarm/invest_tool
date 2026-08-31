@@ -7,6 +7,10 @@
 （沪深主板/中小板/创业板/科创板，不含北交所），排除 ST 及有 ST 风险的股票
 （黑名单永久生效），历史结果按触发日期留存，可下拉回看近 20 次。
 
+第三个模块：**趋势向上**——每个交易日收盘后，选出全 A 股中 MA20 连续 10 个交易日
+上行、按换手率从小到大排序的前 30 只股票；鼠标悬停代码可查看近 3 个月日 K 线
+（含 MA20），历史结果按触发日期留存，可下拉回看近 20 次。
+
 ## 功能特性
 
 - 按股东姓名（模糊）或 A 股代码查询持股记录
@@ -16,13 +20,14 @@
 - 全 A 股（沪深北 5000+ 只）数据抓取，断点续传，服务内置每日增量更新
 - 网站 PV 统计（今日 / 累计），持久化到 SQLite
 - 微盘股筛选：低市值 30 强、ST/风险黑名单、按交易日去重、近 20 次历史回看
+- 趋势向上：MA20 连续 10 日上行、换手率升序取 30 只、悬停代码查看近 3 个月 K 线
 
 ## SEO 与收录
 
 站点正式域名为 `http://www.cats789.fun`（当前仅 HTTP，未配置 HTTPS）：
 
 - `frontend/index.html`：首页 title/description、canonical、Open Graph / Twitter 卡片、站内搜索结构化数据；
-- `frontend/public/robots.txt` 与 `frontend/public/sitemap.xml`：已指向正式域名，sitemap 收录 `/` 与 `/microcap`；
+- `frontend/public/robots.txt` 与 `frontend/public/sitemap.xml`：已指向正式域名，sitemap 收录 `/`、`/microcap` 与 `/trend`；
 - `frontend/public/og-image.png`：社交分享图，可用 `python scripts/generate_og_image.py` 重新生成（需 `pip install pillow`）；
 - 路由级动态 meta：`frontend/src/router/index.js` 在页面切换时更新 title/description/canonical/OG 标签；
 - 爬虫快照：后端对已知搜索引擎爬虫 UA（Baiduspider、Googlebot、bingbot 等）返回服务端渲染的静态 HTML，
@@ -115,6 +120,11 @@ python -m app.crawler --market --limit 10  # 调试：只抓前 10 只
 - `GET /api/microcap/latest`：最新一次微盘股筛选结果
 - `GET /api/microcap/dates`：近 20 次微盘股触发日期
 - `GET /api/microcap/history?date=2026-08-07`：按日期查看历史筛选结果
+- `POST /api/trend/refresh`：触发趋势向上筛选（同交易日自动复用已有结果）
+- `GET /api/trend/latest`：最新一次趋势向上筛选结果
+- `GET /api/trend/dates`：近 20 次趋势向上触发日期
+- `GET /api/trend/history?date=2026-08-07`：按日期查看历史趋势结果
+- `GET /api/trend/kline?code=600519`：某股票近 3 个月日 K（含 MA20，供悬停展示）
 - 接口文档：http://localhost:80/docs
 
 ## 测试与验收
@@ -151,4 +161,11 @@ docker run -p 80:80 invest-tools
 | `CRAWL_INTERVAL` | `3600` | 断点有效期（秒） |
 | `SCHEDULE_INTERVAL` | `86400` | 内置增量爬虫间隔（秒，24 小时） |
 | `ENABLE_SCHEDULED_CRAWL` | `1` | 是否启用内置增量爬虫（`0` 关闭） |
+| `TREND_INTERVAL` | `21600` | 趋势向上定时任务间隔（秒，6 小时） |
+| `TREND_UP_DAYS` | `10` | MA20 需要连续上行的交易日数 |
+| `TREND_TOP_N` | `30` | 按换手率升序取前 N 只 |
+| `TREND_KLINE_DAYS` | `75` | 悬停 K 线根数（约 3 个自然月） |
+| `TREND_KLINE_TTL` | `300` | 悬停 K 线内存缓存有效期（秒） |
+| `TREND_CONCURRENCY` | `8` | 趋势筛选并发拉取日 K 的线程数 |
+| `ENABLE_SCHEDULED_TREND` | `1` | 是否启用趋势向上定时任务（`0` 关闭） |
 | `DB_PATH` | `backend/data/shareholders.db` | SQLite 数据库路径 |

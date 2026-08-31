@@ -40,3 +40,21 @@ MICROCAP_BACKFILL_DAYS = int(os.getenv("MICROCAP_BACKFILL_DAYS", "10"))
 
 # 补记时按历史市值筛选的候选池大小（当前市值最低的前 N 只）
 MICROCAP_BACKFILL_POOL = int(os.getenv("MICROCAP_BACKFILL_POOL", "300"))
+
+# 趋势向上自动拉取间隔（秒），默认 6 小时
+TREND_INTERVAL = int(os.getenv("TREND_INTERVAL", "21600"))
+
+# MA20 需要连续上行的交易日数
+TREND_UP_DAYS = int(os.getenv("TREND_UP_DAYS", "10"))
+
+# 入选数量：按换手率升序取前 N 只
+TREND_TOP_N = int(os.getenv("TREND_TOP_N", "30"))
+
+# 筛选与悬停 K 线使用的日 K 根数（约 3 个自然月）
+TREND_KLINE_DAYS = int(os.getenv("TREND_KLINE_DAYS", "75"))
+
+# 悬停 K 线内存缓存有效期（秒）
+TREND_KLINE_TTL = int(os.getenv("TREND_KLINE_TTL", "300"))
+
+# 趋势筛选并发拉取日 K 的线程数
+TREND_CONCURRENCY = int(os.getenv("TREND_CONCURRENCY", "8"))

@@ -96,3 +96,43 @@ export async function getMicrocapHistory(date) {
   }
   return resp.json()
 }
+
+export async function refreshTrend() {
+  const resp = await fetch(`${BASE}/trend/refresh`, { method: 'POST' })
+  if (!resp.ok) {
+    throw new Error(`请求失败：${resp.status}`)
+  }
+  return resp.json()
+}
+
+export async function getLatestTrend() {
+  const resp = await fetch(`${BASE}/trend/latest`)
+  if (!resp.ok) {
+    throw new Error(`请求失败：${resp.status}`)
+  }
+  return resp.json()
+}
+
+export async function getTrendDates() {
+  const resp = await fetch(`${BASE}/trend/dates`)
+  if (!resp.ok) {
+    throw new Error(`请求失败：${resp.status}`)
+  }
+  return resp.json()
+}
+
+export async function getTrendHistory(date) {
+  const resp = await fetch(`${BASE}/trend/history?date=${encodeURIComponent(date)}`)
+  if (!resp.ok) {
+    throw new Error(`请求失败：${resp.status}`)
+  }
+  return resp.json()
+}
+
+export async function getTrendKline(code) {
+  const resp = await fetch(`${BASE}/trend/kline?code=${encodeURIComponent(code)}`)
+  if (!resp.ok) {
+    throw new Error(`请求失败：${resp.status}`)
+  }
+  return resp.json()
+}

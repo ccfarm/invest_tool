@@ -9,6 +9,7 @@
         <nav class="nav-links">
           <router-link to="/" class="nav-link active">股东查询</router-link>
           <router-link to="/microcap" class="nav-link">微盘股</router-link>
+          <router-link to="/trend" class="nav-link">趋势向上</router-link>
         </nav>
         <div class="nav-actions">
           <router-link v-if="!hasToken" to="/login" class="nav-link">登录</router-link>

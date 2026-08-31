@@ -41,3 +41,12 @@
 - [x] 前后端联调：搜索 → 结果全流程
 - [x] 简单部署方案（如 Docker / 启动脚本）
 - [x] 验收测试与文档更新
+
+## M5 趋势向上模块
+
+- [x] 筛选逻辑：MA20 连续 10 个交易日上行（`trend.py`），按换手率升序取 30 只
+- [x] 快照存储：`trend_snapshots` 表 + 近 20 次历史下拉回看
+- [x] 接口：`/api/trend/refresh`、`/latest`、`/dates`、`/history`、`/kline`
+- [x] 定时任务：服务内置，每 6 小时刷新，`ENABLE_SCHEDULED_TREND` 可关闭
+- [x] 前端页面：`/trend` 表格 + 代码悬停展示近 3 个月 K 线（含 MA20）
+- [x] 单测与冒烟测试：MA20 判定、筛选排序、快照复用、K 线缓存、SEO 快照

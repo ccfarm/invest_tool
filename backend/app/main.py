@@ -19,6 +19,7 @@ from .config import (
     MICROCAP_INTERVAL,
     SCHEDULE_INTERVAL,
     TOKEN_TTL_SECONDS,
+    TREND_INTERVAL,
 )
 from .crawler import crawl_market
 from .db import (
@@ -28,13 +29,21 @@ from .db import (
     get_microcap_snapshot,
     get_password_hash,
     get_pv,
+    get_trend_snapshot,
     init_auth_user,
     list_microcap_dates,
+    list_trend_dates,
     record_pv,
     search,
 )
 from .microcap import latest_microcap, refresh_microcap, scheduled_microcap
 from .seo import crawler_snapshot, is_crawler
+from .trend import (
+    fetch_trend_kline,
+    latest_trend,
+    refresh_trend,
+    scheduled_trend,
+)
 
 FRONTEND_DIST = BASE_DIR.parent / "frontend" / "dist"
 logger = logging.getLogger(__name__)
@@ -87,6 +96,21 @@ def _run_scheduled_microcap(stop_event: threading.Event) -> None:
         stop_event.wait(MICROCAP_INTERVAL)
 
 
+def _run_scheduled_trend(stop_event: threading.Event) -> None:
+    """服务进程内的趋势向上定时任务：启动立即执行一次，之后每 6 小时执行。"""
+    logger.info(
+        "趋势向上定时任务已启动：立即执行一次，之后每 %d 秒（%.1f 小时）执行",
+        TREND_INTERVAL,
+        TREND_INTERVAL / 3600,
+    )
+    while not stop_event.is_set():
+        try:
+            scheduled_trend()
+        except Exception:
+            logger.exception("趋势向上定时拉取失败，等待下一轮重试")
+        stop_event.wait(TREND_INTERVAL)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -112,6 +136,16 @@ async def lifespan(_: FastAPI):
         thread.start()
     else:
         logger.info("微盘股定时任务已禁用（ENABLE_SCHEDULED_MICROCAP=0）")
+    if os.getenv("ENABLE_SCHEDULED_TREND", "1") == "1":
+        thread = threading.Thread(
+            target=_run_scheduled_trend,
+            args=(stop_event,),
+            daemon=True,
+            name="trend-scheduler",
+        )
+        thread.start()
+    else:
+        logger.info("趋势向上定时任务已禁用（ENABLE_SCHEDULED_TREND=0）")
     yield
     stop_event.set()
 
@@ -174,6 +208,41 @@ class MicrocapSnapshotResponse(BaseModel):
     trade_date: str | None
     created_at: str | None
     items: list[MicrocapItem]
+
+
+class TrendItem(BaseModel):
+    rank: int
+    code: str
+    name: str
+    price: float | None
+    turnover: float | None
+    ma20: float | None
+
+
+class TrendRefreshResponse(BaseModel):
+    trade_date: str
+    reused: bool
+    items: list[TrendItem]
+
+
+class TrendSnapshotResponse(BaseModel):
+    trade_date: str | None
+    created_at: str | None
+    items: list[TrendItem]
+
+
+class TrendKlineBar(BaseModel):
+    date: str
+    open: float
+    high: float
+    low: float
+    close: float
+    ma20: float | None
+
+
+class TrendKlineResponse(BaseModel):
+    code: str
+    bars: list[TrendKlineBar]
 
 
 class LoginRequest(BaseModel):
@@ -240,6 +309,46 @@ def microcap_history(date: str):
     if not snap:
         return JSONResponse({"detail": f"未找到 {date} 的快照"}, status_code=404)
     return snap
+
+
+@app.post("/api/trend/refresh", response_model=TrendRefreshResponse)
+def trend_refresh(force: bool = False):
+    """触发趋势向上筛选：MA20 连续 10 个交易日上行，按换手率升序取 30 只。"""
+    return refresh_trend(force=force)
+
+
+@app.get("/api/trend/latest", response_model=TrendSnapshotResponse)
+def trend_latest():
+    """默认展示：最新一次趋势向上筛选结果。"""
+    snap = latest_trend()
+    if not snap:
+        return {"trade_date": None, "created_at": None, "items": []}
+    return snap
+
+
+@app.get("/api/trend/dates")
+def trend_dates():
+    """近 20 次触发日期（含触发时间）。"""
+    return {"dates": list_trend_dates(limit=20)}
+
+
+@app.get("/api/trend/history", response_model=TrendSnapshotResponse)
+def trend_history(date: str):
+    """按触发日期查看历史筛选结果。"""
+    snap = get_trend_snapshot(date)
+    if not snap:
+        return JSONResponse({"detail": f"未找到 {date} 的趋势快照"}, status_code=404)
+    return snap
+
+
+@app.get("/api/trend/kline", response_model=TrendKlineResponse)
+def trend_kline(code: str = Query(..., min_length=6, max_length=6, description="A 股代码")):
+    """某股票近 3 个月日 K（含 MA20），供悬停展示。"""
+    try:
+        bars = fetch_trend_kline(code)
+    except (OSError, ValueError):
+        raise HTTPException(status_code=502, detail="K 线数据获取失败，请稍后重试")
+    return {"code": code, "bars": bars}
 
 
 @app.post("/api/auth/login", response_model=TokenResponse)

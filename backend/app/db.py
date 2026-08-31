@@ -78,6 +78,13 @@ def init_db() -> None:
                 items      TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS trend_snapshots (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                trade_date TEXT UNIQUE,
+                created_at TEXT,
+                items      TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS users (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
                 username      TEXT NOT NULL UNIQUE,
@@ -292,6 +299,67 @@ def list_microcap_dates(limit: int = 20) -> list[dict]:
     with get_conn() as conn:
         rows = conn.execute(
             "SELECT trade_date, created_at FROM microcap_snapshots ORDER BY trade_date DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    return [
+        {"trade_date": r["trade_date"], "created_at": r["created_at"]} for r in rows
+    ]
+
+
+def save_trend_snapshot(trade_date: str, items: list[dict]) -> None:
+    """保存某交易日趋势向上结果快照（同日期覆盖）。"""
+    init_db()
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO trend_snapshots (trade_date, created_at, items)
+            VALUES (?, ?, ?)
+            ON CONFLICT (trade_date) DO UPDATE SET
+                created_at = excluded.created_at,
+                items      = excluded.items
+            """,
+            (trade_date, now, json.dumps(items, ensure_ascii=False)),
+        )
+
+
+def get_trend_snapshot(trade_date: str) -> dict | None:
+    init_db()
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT trade_date, created_at, items FROM trend_snapshots WHERE trade_date = ?",
+            (trade_date,),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "trade_date": row["trade_date"],
+        "created_at": row["created_at"],
+        "items": json.loads(row["items"]),
+    }
+
+
+def get_latest_trend_snapshot() -> dict | None:
+    init_db()
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT trade_date, created_at, items FROM trend_snapshots ORDER BY trade_date DESC LIMIT 1"
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "trade_date": row["trade_date"],
+        "created_at": row["created_at"],
+        "items": json.loads(row["items"]),
+    }
+
+
+def list_trend_dates(limit: int = 20) -> list[dict]:
+    """最近 N 次趋势向上触发日期（含触发时间，倒序）。"""
+    init_db()
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT trade_date, created_at FROM trend_snapshots ORDER BY trade_date DESC LIMIT ?",
             (limit,),
         ).fetchall()
     return [

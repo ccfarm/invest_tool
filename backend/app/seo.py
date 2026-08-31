@@ -15,8 +15,9 @@ from urllib.parse import parse_qs, quote
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 
-from .db import get_microcap_snapshot, search
+from .db import get_microcap_snapshot, get_trend_snapshot, search
 from .microcap import latest_microcap
+from .trend import latest_trend
 
 SITE_URL = "http://www.cats789.fun"
 
@@ -38,6 +39,11 @@ MICROCAP_DESCRIPTION = (
     "查看最近交易日总市值最低的 30 只 A 股微盘股名单，排除 ST 及有 ST 风险的股票，"
     "数据每 6 小时更新。"
 )
+TREND_TITLE = "趋势向上 - MA20 连续上行换手率最低 30 只 A 股 | 投资工具箱"
+TREND_DESCRIPTION = (
+    "查看最近交易日 MA20 连续 10 个交易日上行、换手率最低的 30 只 A 股，"
+    "悬停代码可查看近 3 个月日 K 线，数据每 6 小时更新。"
+)
 
 
 def is_crawler(request: Request) -> bool:
@@ -50,6 +56,11 @@ def _int_param(values: list[str] | None, default: int = 1) -> int:
         return max(default, int((values or [str(default)])[0]))
     except ValueError:
         return default
+
+
+def _num(value) -> str:
+    """数字格式化，缺失返回 —。"""
+    return f"{value:,.2f}" if isinstance(value, (int, float)) else "—"
 
 
 def _page(
@@ -91,12 +102,13 @@ def _page(
   <body>
     <nav>
       <a href="{SITE_URL}/">投资工具箱</a> ·
-      <a href="{SITE_URL}/microcap">微盘股筛选</a>
+      <a href="{SITE_URL}/microcap">微盘股筛选</a> ·
+      <a href="{SITE_URL}/trend">趋势向上</a>
     </nav>
     <main>
       {body}
     </main>
-    <footer>投资工具箱 - A股股东持股查询与微盘股筛选</footer>
+    <footer>投资工具箱 - A股股东持股查询 / 微盘股筛选 / 趋势向上</footer>
   </body>
 </html>"""
     return HTMLResponse(content=document, headers={"X-Robots-Tag": robots})
@@ -233,6 +245,39 @@ def _microcap_snapshot(query_params: dict[str, list[str]]) -> HTMLResponse:
     return _page(MICROCAP_TITLE, MICROCAP_DESCRIPTION, canonical, body)
 
 
+def _trend_snapshot(query_params: dict[str, list[str]]) -> HTMLResponse:
+    date = (query_params.get("date") or [""])[0].strip()
+    snap = get_trend_snapshot(date) if date else latest_trend()
+    canonical = f"{SITE_URL}/trend" + (f"?date={quote(date)}" if date else "")
+
+    if not snap or not snap.get("items"):
+        body = """
+      <h1>趋势向上</h1>
+      <p>还没有趋势数据，服务每 6 小时自动拉取，请稍后再来查看。</p>"""
+    else:
+        rows = "".join(
+            "<tr>"
+            f"<td>{item['rank']}</td>"
+            f"<td>{html.escape(item['code'])}</td>"
+            f"<td>{html.escape(item['name'])}</td>"
+            f"<td>{_num(item.get('price'))}</td>"
+            f"<td>{_num(item.get('turnover'))}%</td>"
+            f"<td>{_num(item.get('ma20'))}</td>"
+            "</tr>"
+            for item in snap["items"]
+        )
+        body = f"""
+      <h1>趋势向上 - MA20 连续 10 个交易日上行</h1>
+      <p>{snap['trade_date']} 入选的股票（MA20 连续 10 个交易日上行，
+         按换手率从小到大取 30 只）。</p>
+      <table>
+        <thead><tr><th>排名</th><th>代码</th><th>名称</th>
+        <th>现价</th><th>换手率</th><th>MA20</th></tr></thead>
+        <tbody>{rows}</tbody>
+      </table>"""
+    return _page(TREND_TITLE, TREND_DESCRIPTION, canonical, body)
+
+
 def _login_snapshot() -> HTMLResponse:
     body = "<h1>登录</h1><p>登录投资工具箱后可使用更多功能。</p>"
     return _page("登录 - 投资工具箱", "登录投资工具箱。", f"{SITE_URL}/login", body, noindex=True)
@@ -242,7 +287,8 @@ def _generic_snapshot() -> HTMLResponse:
     body = f"""
       <h1>投资工具箱</h1>
       <p>请访问 <a href="{SITE_URL}/">股东查询</a> 或
-         <a href="{SITE_URL}/microcap">微盘股筛选</a>。</p>"""
+         <a href="{SITE_URL}/microcap">微盘股筛选</a> 或
+         <a href="{SITE_URL}/trend">趋势向上</a>。</p>"""
     return _page(HOME_TITLE, HOME_DESCRIPTION, f"{SITE_URL}/", body)
 
 
@@ -255,6 +301,8 @@ def crawler_snapshot(path: str, request: Request) -> HTMLResponse:
         return _home_snapshot()
     if path == "/microcap":
         return _microcap_snapshot(query_params)
+    if path == "/trend":
+        return _trend_snapshot(query_params)
     if path.startswith("/results"):
         return _results_snapshot(query_params)
     if path == "/login":

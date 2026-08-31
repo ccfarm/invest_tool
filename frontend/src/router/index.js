@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import ResultsView from '../views/ResultsView.vue'
 import MicrocapView from '../views/MicrocapView.vue'
+import TrendView from '../views/TrendView.vue'
 import LoginView from '../views/LoginView.vue'
 
 const SITE_URL = 'http://www.cats789.fun'
@@ -12,6 +13,7 @@ const router = createRouter({
     { path: '/', name: 'home', component: HomeView },
     { path: '/results', name: 'results', component: ResultsView },
     { path: '/microcap', name: 'microcap', component: MicrocapView },
+    { path: '/trend', name: 'trend', component: TrendView },
     { path: '/login', name: 'login', component: LoginView },
   ],
 })
@@ -31,6 +33,11 @@ const META = {
     title: '微盘股筛选 - 总市值最低 30 只 A 股 | 投资工具箱',
     description:
       '查看最近交易日总市值最低的 30 只 A 股微盘股名单，排除 ST 及有 ST 风险的股票，数据每 6 小时更新。',
+  },
+  trend: {
+    title: '趋势向上 - MA20 连续上行换手率最低 30 只 | 投资工具箱',
+    description:
+      '查看最近交易日 MA20 连续 10 个交易日上行、换手率最低的 30 只 A 股，悬停代码可查看近 3 个月日 K 线。',
   },
   login: {
     title: '登录 - 投资工具箱',

@@ -8,6 +8,8 @@ os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(), "test.db")
 os.environ["ENABLE_SCHEDULED_CRAWL"] = "0"
 # 测试不启动微盘股定时任务（避免联网）
 os.environ["ENABLE_SCHEDULED_MICROCAP"] = "0"
+# 测试不启动趋势向上定时任务（避免联网）
+os.environ["ENABLE_SCHEDULED_TREND"] = "0"
 # 与 test_api.py 中登录用例保持一致（默认值可被外部环境变量覆盖）
 os.environ.setdefault("AUTH_USERNAME", "ccfarm")
 os.environ.setdefault("AUTH_PASSWORD", "5800969q")

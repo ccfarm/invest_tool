@@ -30,4 +30,10 @@ curl -sf http://127.0.0.1:80/ | grep -q '<title>股东查询'
 echo "==> GET /results?q=600519 SPA 回退"
 curl -sf 'http://127.0.0.1:80/results?q=600519' | grep -q '<title>股东查询'
 
+echo "==> GET /api/trend/latest"
+curl -sf http://127.0.0.1:80/api/trend/latest | grep -q '"items"'
+
+echo "==> GET /trend SPA 回退"
+curl -sf http://127.0.0.1:80/trend | grep -q '<title>股东查询'
+
 echo "==> 冒烟测试全部通过"

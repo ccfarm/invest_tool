@@ -126,6 +126,17 @@ def test_crawler_microcap_snapshot(client):
     assert "http://www.cats789.fun/microcap" in resp.text
 
 
+def test_crawler_trend_snapshot(client):
+    resp = client.get(
+        "/trend",
+        headers={"User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["x-robots-tag"] == "index, follow"
+    assert "趋势向上" in resp.text
+    assert "http://www.cats789.fun/trend" in resp.text
+
+
 def test_crawler_login_noindex(client):
     resp = client.get("/login", headers=BAIDU_UA)
     assert resp.status_code == 200
