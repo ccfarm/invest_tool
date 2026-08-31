@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /login
 
-# 上线前将 example.com 替换为正式域名
-Sitemap: https://example.com/sitemap.xml
+# 正式域名
+Sitemap: http://www.cats789.fun/sitemap.xml

@@ -1,5 +1,6 @@
 import os
 import tempfile
+from pathlib import Path
 
 # 测试使用独立临时数据库，避免污染真实数据
 os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(), "test.db")
@@ -7,13 +8,26 @@ os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(), "test.db")
 os.environ["ENABLE_SCHEDULED_CRAWL"] = "0"
 # 测试不启动微盘股定时任务（避免联网）
 os.environ["ENABLE_SCHEDULED_MICROCAP"] = "0"
+# 与 test_api.py 中登录用例保持一致（默认值可被外部环境变量覆盖）
+os.environ.setdefault("AUTH_USERNAME", "ccfarm")
+os.environ.setdefault("AUTH_PASSWORD", "5800969q")
 
 import pytest
 from fastapi.testclient import TestClient
 
+import app.main as main_module
 from app.config import AUTH_PASSWORD, AUTH_USERNAME, TOKEN_TTL_SECONDS
 from app.db import create_session, init_auth_user, upsert_holdings
 from app.main import app
+
+# 测试使用最小前端产物，保证 SPA 路由/爬虫快照测试不依赖仓库内是否已构建
+_FAKE_DIST = Path(tempfile.mkdtemp())
+_FAKE_DIST.joinpath("index.html").write_text(
+    '<!doctype html><html><head><title>股东查询 - A股股东持股记录</title></head>'
+    '<body><div id="app"></div></body></html>',
+    encoding="utf-8",
+)
+main_module.FRONTEND_DIST = _FAKE_DIST
 
 
 @pytest.fixture(autouse=True)

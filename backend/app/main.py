@@ -5,7 +5,7 @@ import os
 import threading
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -34,6 +34,7 @@ from .db import (
     search,
 )
 from .microcap import latest_microcap, refresh_microcap, scheduled_microcap
+from .seo import crawler_snapshot, is_crawler
 
 FRONTEND_DIST = BASE_DIR.parent / "frontend" / "dist"
 logger = logging.getLogger(__name__)
@@ -265,11 +266,18 @@ def logout(token: str = Depends(require_auth_token)):
 
 
 @app.get("/{full_path:path}", include_in_schema=False)
-def spa(full_path: str):
-    """托管前端构建产物（frontend/dist），未命中时回退到 index.html。"""
+def spa(full_path: str, request: Request):
+    """托管前端构建产物（frontend/dist），未命中时回退到 index.html。
+
+    搜索引擎爬虫访问时返回服务端渲染的快照（见 seo.py），
+    普通用户仍走 SPA，行为不变。
+    """
+    if FRONTEND_DIST.exists() and full_path:
+        target = FRONTEND_DIST / full_path
+        if target.is_file():
+            return FileResponse(target)
+    if is_crawler(request):
+        return crawler_snapshot(full_path, request)
     if not FRONTEND_DIST.exists():
         return JSONResponse({"detail": "前端未构建，请先运行 npm run build"}, status_code=404)
-    target = FRONTEND_DIST / full_path
-    if full_path and target.is_file():
-        return FileResponse(target)
     return FileResponse(FRONTEND_DIST / "index.html")

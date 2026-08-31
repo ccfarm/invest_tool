@@ -17,6 +17,20 @@
 - 网站 PV 统计（今日 / 累计），持久化到 SQLite
 - 微盘股筛选：低市值 30 强、ST/风险黑名单、按交易日去重、近 20 次历史回看
 
+## SEO 与收录
+
+站点正式域名为 `http://www.cats789.fun`（当前仅 HTTP，未配置 HTTPS）：
+
+- `frontend/index.html`：首页 title/description、canonical、Open Graph / Twitter 卡片、站内搜索结构化数据；
+- `frontend/public/robots.txt` 与 `frontend/public/sitemap.xml`：已指向正式域名，sitemap 收录 `/` 与 `/microcap`；
+- `frontend/public/og-image.png`：社交分享图，可用 `python scripts/generate_og_image.py` 重新生成（需 `pip install pillow`）；
+- 路由级动态 meta：`frontend/src/router/index.js` 在页面切换时更新 title/description/canonical/OG 标签；
+- 爬虫快照：后端对已知搜索引擎爬虫 UA（Baiduspider、Googlebot、bingbot 等）返回服务端渲染的静态 HTML，
+  内容与前端同一数据源；`/results` 与 `/login` 标记 `noindex, follow`，避免重复或薄内容进入索引。
+
+上线后建议在百度搜索资源平台、Bing Webmaster、Google Search Console 完成站点验证，
+并提交 `http://www.cats789.fun/sitemap.xml`。
+
 ## 技术栈
 
 - 前端：Vue 3 + Vue Router + Vite

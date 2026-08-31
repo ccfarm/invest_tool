@@ -80,6 +80,59 @@ def test_me_with_token(client, auth_headers):
     assert resp.json()["username"] == "ccfarm"
 
 
+BAIDU_UA = {
+    "User-Agent": (
+        "Mozilla/5.0 (compatible; Baiduspider/2.0; "
+        "+http://www.baidu.com/search/spider.html)"
+    )
+}
+
+
+def test_spa_normal_user_gets_shell(client):
+    resp = client.get("/results", params={"q": "张三"})
+    assert resp.status_code == 200
+    assert '<div id="app">' in resp.text
+
+
+def test_crawler_home_snapshot(client):
+    resp = client.get("/", headers=BAIDU_UA)
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    assert resp.headers["x-robots-tag"] == "index, follow"
+    assert "http://www.cats789.fun/" in resp.text
+    assert "股东持股查询" in resp.text
+    assert "微盘股筛选" in resp.text
+    assert "葛卫东" in resp.text
+
+
+def test_crawler_results_snapshot_contains_data(client):
+    resp = client.get("/results", params={"q": "张三"}, headers=BAIDU_UA)
+    assert resp.status_code == 200
+    assert resp.headers["x-robots-tag"] == "noindex, follow"
+    assert "贵州茅台" in resp.text
+    assert "五粮液" in resp.text
+    assert "张三" in resp.text
+    assert "http://www.cats789.fun/results?q=" in resp.text
+
+
+def test_crawler_microcap_snapshot(client):
+    resp = client.get(
+        "/microcap",
+        headers={"User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["x-robots-tag"] == "index, follow"
+    assert "微盘股筛选" in resp.text
+    assert "http://www.cats789.fun/microcap" in resp.text
+
+
+def test_crawler_login_noindex(client):
+    resp = client.get("/login", headers=BAIDU_UA)
+    assert resp.status_code == 200
+    assert resp.headers["x-robots-tag"] == "noindex, follow"
+    assert "登录投资工具箱" in resp.text
+
+
 def test_logout_invalidates_token(client, auth_headers):
     assert client.post("/api/auth/logout", headers=auth_headers).status_code == 200
     assert client.get("/api/auth/me", headers=auth_headers).status_code == 401
