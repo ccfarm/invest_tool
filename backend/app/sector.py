@@ -13,7 +13,7 @@ import logging
 import threading
 import time as time_mod
 import urllib.parse
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
@@ -24,7 +24,6 @@ from .microcap import _get, fetch_kline, get_last_trade_date
 logger = logging.getLogger(__name__)
 
 CLIST_URL = "https://push2delay.eastmoney.com/api/qt/clist/get"
-KLINE_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
 UT = "bd1d9ddb04089700cf9c27f6f7426281"
 REQUEST_INTERVAL = 0.2
 _request_lock = threading.Lock()
@@ -49,32 +48,24 @@ def fetch_industry_boards() -> list[dict]:
     while True:
         params = {
             "pn": page, "pz": 100, "po": 1, "np": 1, "ut": UT, "fltt": 2,
-            "invt": 2, "fid": "f3", "fs": "m:90+t:2+f:!50", "fields": "f12,f14",
+            "invt": 2, "fid": "f3", "fs": "m:90+t:2+f:!50",
+            "fields": "f12,f14,f160",
         }
         data = _json_get(f"{CLIST_URL}?{urllib.parse.urlencode(params)}")
         payload = data.get("data") or {}
         rows = payload.get("diff") or []
         boards.extend(
-            {"code": row["f12"], "name": row["f14"]}
+            {
+                "code": row["f12"], "name": row["f14"],
+                "return_10d": float(row["f160"]),
+            }
             for row in rows
-            if row.get("f12") and row.get("f14")
+            if row.get("f12") and row.get("f14") and row.get("f160") not in (None, "-")
         )
         if not rows or page * 100 >= (payload.get("total") or 0):
             break
         page += 1
     return boards
-
-
-def fetch_kline_closes(secid: str, limit: int = 21) -> list[float]:
-    """东方财富前复权日 K 收盘价，按交易日升序。"""
-    params = {
-        "secid": secid, "ut": UT, "klt": 101, "fqt": 1, "lmt": limit,
-        "end": "20500101", "fields1": "f1,f2,f3,f4,f5,f6",
-        "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
-    }
-    data = _json_get(f"{KLINE_URL}?{urllib.parse.urlencode(params)}")
-    klines = (data.get("data") or {}).get("klines") or []
-    return [float(row.split(",")[2]) for row in klines]
 
 
 def fetch_board_members(board_code: str) -> list[dict]:
@@ -117,17 +108,6 @@ def fetch_stock_closes(code: str) -> list[float]:
     return [float(bar["close"]) for bar in fetch_kline(f"{prefix}{code}", datalen=20)]
 
 
-def _ten_day_return(board: dict) -> dict | None:
-    try:
-        closes = fetch_kline_closes(f"90.{board['code']}", 11)
-    except (OSError, ValueError, KeyError):
-        logger.warning("板块日 K 获取失败：%s", board["code"])
-        return None
-    if len(closes) < 11 or closes[-11] <= 0:
-        return None
-    return {**board, "return_10d": (closes[-1] / closes[-11] - 1) * 100}
-
-
 def _member_strong(member: dict) -> bool | None:
     try:
         closes = fetch_stock_closes(member["code"])
@@ -162,14 +142,7 @@ def _board_strength(board: dict, concurrency: int) -> dict:
 def screen_sectors(top_n: int = SECTOR_TOP_N, concurrency: int = SECTOR_CONCURRENCY) -> dict:
     trade_date = get_last_trade_date()
     boards = fetch_industry_boards()
-    ranked: list[dict] = []
-    with ThreadPoolExecutor(max_workers=concurrency) as pool:
-        futures = [pool.submit(_ten_day_return, board) for board in boards]
-        for future in as_completed(futures):
-            result = future.result()
-            if result:
-                ranked.append(result)
-    leaders = sorted(ranked, key=lambda item: item["return_10d"], reverse=True)[:top_n]
+    leaders = sorted(boards, key=lambda item: item["return_10d"], reverse=True)[:top_n]
     # 板块逐个处理以控制东方财富并发量；板块内部并发拉取个股日 K。
     items = [_board_strength(board, concurrency) for board in leaders]
     if len(items) != top_n or any(item["valid_count"] == 0 for item in items):

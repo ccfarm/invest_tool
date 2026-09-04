@@ -20,26 +20,15 @@ def test_fetch_industry_boards_uses_industry_scope(monkeypatch):
     def fake_get(url):
         seen.append(url)
         return json.dumps({"data": {"diff": [
-            {"f12": "BK1031", "f14": "半导体"},
+            {"f12": "BK1031", "f14": "半导体", "f160": 12.34},
             {"f12": None, "f14": "无代码"},
         ]}})
 
     monkeypatch.setattr(sector, "_get", fake_get)
-    assert sector.fetch_industry_boards() == [{"code": "BK1031", "name": "半导体"}]
+    assert sector.fetch_industry_boards() == [
+        {"code": "BK1031", "name": "半导体", "return_10d": 12.34}
+    ]
     assert "m%3A90%2Bt%3A2%2Bf%3A%2150" in seen[0]
-
-
-def test_ten_day_return_uses_eleven_closes(monkeypatch):
-    seen = []
-
-    def fake_closes(secid, limit):
-        seen.append((secid, limit))
-        return [100.0] + [101.0] * 9 + [110.0]
-
-    monkeypatch.setattr(sector, "fetch_kline_closes", fake_closes)
-    result = sector._ten_day_return({"code": "BK1031", "name": "半导体"})
-    assert seen == [("90.BK1031", 11)]
-    assert result["return_10d"] == pytest.approx(10.0)
 
 
 def test_fetch_stock_closes_uses_exchange_prefix(monkeypatch):
@@ -62,16 +51,12 @@ def test_screen_sectors_prefilters_by_return_then_sorts_by_ratio(monkeypatch):
         {"code": "BK0003", "name": "丙"},
     ]
     returns = {"BK0001": 3.0, "BK0002": 9.0, "BK0003": 6.0}
+    boards = [{**board, "return_10d": returns[board["code"]]} for board in boards]
     ratios = {"BK0002": 40.0, "BK0003": 80.0}
     saved = []
 
     monkeypatch.setattr(sector, "get_last_trade_date", lambda: "2026-09-03")
     monkeypatch.setattr(sector, "fetch_industry_boards", lambda: boards)
-    monkeypatch.setattr(
-        sector,
-        "_ten_day_return",
-        lambda board: {**board, "return_10d": returns[board["code"]]},
-    )
     monkeypatch.setattr(
         sector,
         "_board_strength",
