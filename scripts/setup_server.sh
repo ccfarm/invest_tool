@@ -10,7 +10,7 @@ echo "==> 安装基础依赖..."
 apt update
 apt install -y git python3 python3-venv curl
 
-# Ubuntu 自带 nodejs 版本过旧，用 NodeSource 安装 Node 22（Vite 8 需要）
+# Ubuntu 自带 nodejs 版本过旧，用 NodeSource 安装 Node 22（Next.js 与 node:sqlite 需要）
 if ! command -v node >/dev/null 2>&1 || [ "$(node -v | tr -d 'v' | cut -d. -f1)" -lt 20 ]; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   apt install -y nodejs
@@ -24,11 +24,13 @@ cd "$APP_DIR"
 
 echo "==> 注册 systemd 服务..."
 cp scripts/invest-tool.service /etc/systemd/system/invest-tool.service
+cp scripts/invest-tool-crawler.service /etc/systemd/system/invest-tool-crawler.service
 systemctl daemon-reload
 
 echo "==> 首次构建并启动..."
 bash scripts/deploy_server.sh
 systemctl enable invest-tool
+systemctl enable invest-tool-crawler
 
 IP=$(hostname -I | awk '{print $1}')
 echo "==> 完成：http://${IP}:80（记得在阿里云安全组放行 80 端口）"

@@ -6,11 +6,12 @@ cd "$(dirname "$0")/.." # 仓库根目录，默认 /opt/invest_tool
 
 echo "==> 更新 systemd 单元（数据目录固定在仓库外）..."
 cp scripts/invest-tool.service /etc/systemd/system/invest-tool.service
+cp scripts/invest-tool-crawler.service /etc/systemd/system/invest-tool-crawler.service
 systemctl daemon-reload
 
 echo "==> 构建前端..."
 cd frontend
-npm ci
+npm install
 npm run build
 cd ..
 
@@ -18,20 +19,16 @@ echo "==> 准备后端环境..."
 if [ ! -d backend/.venv ]; then
   python3 -m venv backend/.venv
 fi
-if ! backend/.venv/bin/python -c "import fastapi" >/dev/null 2>&1; then
+if ! (cd backend && .venv/bin/python -c "import app") >/dev/null 2>&1; then
   backend/.venv/bin/pip install -r backend/requirements.txt
 fi
 
 echo "==> 重启服务..."
 if systemctl list-unit-files | grep -q '^invest-tool.service'; then
   systemctl restart invest-tool
+  systemctl restart invest-tool-crawler
 else
-  pkill -f 'uvicorn app.main:app' || true
-  (
-    cd backend
-    nohup .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 80 \
-      >/tmp/invest_tool.log 2>&1 &
-  )
+  systemctl start invest-tool invest-tool-crawler
 fi
 
 echo "==> 部署完成"

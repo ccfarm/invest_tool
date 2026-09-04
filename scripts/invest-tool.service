@@ -1,13 +1,16 @@
 [Unit]
-Description=投资工具箱（invest-tool）
+Description=投资工具箱 Next.js Web
 After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/invest_tool/backend
-ExecStart=/opt/invest_tool/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 80
+WorkingDirectory=/opt/invest_tool/frontend
+ExecStart=/usr/bin/npm start
 # 数据固定在仓库外：部署的 git 重置/重建永不触碰该目录
 Environment=DATA_DIR=/var/lib/invest_tool
+Environment=DB_PATH=/var/lib/invest_tool/shareholders.db
+Environment=PYTHON_BIN=/opt/invest_tool/backend/.venv/bin/python
+Environment=PORT=80
 Restart=always
 RestartSec=5
 # 可选：如需覆盖默认账号/密码等配置，写入 /etc/invest-tool.env（KEY=VALUE 每行一个）

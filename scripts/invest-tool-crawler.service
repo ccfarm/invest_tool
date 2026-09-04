@@ -1,0 +1,15 @@
+[Unit]
+Description=投资工具箱 Python 数据采集器
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/invest_tool/backend
+ExecStart=/opt/invest_tool/backend/.venv/bin/python -m app.scheduler
+Environment=DATA_DIR=/var/lib/invest_tool
+EnvironmentFile=-/etc/invest-tool.env
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

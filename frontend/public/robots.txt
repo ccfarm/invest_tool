@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /login
-
-# 正式域名
-Sitemap: http://www.cats789.fun/sitemap.xml
