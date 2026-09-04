@@ -83,7 +83,10 @@ def test_refresh_sectors_reuses_same_trade_date(monkeypatch):
     monkeypatch.setattr(
         sector,
         "get_sector_snapshot",
-        lambda day: {"trade_date": day, "items": [{"code": "BK1031"}]},
+        lambda day: {
+            "trade_date": day,
+            "items": [{"code": f"BK{i:04d}", "valid_count": 10} for i in range(20)],
+        },
     )
     monkeypatch.setattr(
         sector,
@@ -92,6 +95,23 @@ def test_refresh_sectors_reuses_same_trade_date(monkeypatch):
     )
     result = sector.refresh_sectors()
     assert result["reused"] is True
+
+
+def test_refresh_sectors_replaces_invalid_snapshot(monkeypatch):
+    monkeypatch.setattr(sector, "get_last_trade_date", lambda: "2026-09-03")
+    monkeypatch.setattr(
+        sector,
+        "get_sector_snapshot",
+        lambda day: {"trade_date": day, "items": [{"code": "BK1031", "valid_count": 0}]},
+    )
+    monkeypatch.setattr(
+        sector,
+        "screen_sectors",
+        lambda: {"trade_date": "2026-09-03", "items": [{"valid_count": 8}]},
+    )
+    result = sector.refresh_sectors()
+    assert result["reused"] is False
+    assert result["items"][0]["valid_count"] == 8
 
 
 def test_scheduled_sectors_waits_for_close(monkeypatch):

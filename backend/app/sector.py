@@ -26,12 +26,19 @@ logger = logging.getLogger(__name__)
 CLIST_URL = "https://push2delay.eastmoney.com/api/qt/clist/get"
 KLINE_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
 UT = "bd1d9ddb04089700cf9c27f6f7426281"
-KLINE_REQUEST_INTERVAL = 0.12
-_kline_lock = threading.Lock()
-_last_kline_request = 0.0
+REQUEST_INTERVAL = 0.2
+_request_lock = threading.Lock()
+_last_request = 0.0
 
 
 def _json_get(url: str) -> dict:
+    global _last_request
+    # 东方财富会主动断开高频连接；限制全进程请求起始速率，线程仅用于隐藏网络延迟。
+    with _request_lock:
+        wait = REQUEST_INTERVAL - (time_mod.monotonic() - _last_request)
+        if wait > 0:
+            time_mod.sleep(wait)
+        _last_request = time_mod.monotonic()
     return json.loads(_get(url)) or {}
 
 
@@ -60,13 +67,6 @@ def fetch_industry_boards() -> list[dict]:
 
 def fetch_kline_closes(secid: str, limit: int = 21) -> list[float]:
     """东方财富前复权日 K 收盘价，按交易日升序。"""
-    global _last_kline_request
-    # 东方财富会主动断开高频连接；限制全进程请求起始速率，线程仅用于隐藏网络延迟。
-    with _kline_lock:
-        wait = KLINE_REQUEST_INTERVAL - (time_mod.monotonic() - _last_kline_request)
-        if wait > 0:
-            time_mod.sleep(wait)
-        _last_kline_request = time_mod.monotonic()
     params = {
         "secid": secid, "ut": UT, "klt": 101, "fqt": 1, "lmt": limit,
         "end": "20500101", "fields1": "f1,f2,f3,f4,f5,f6",
@@ -166,6 +166,8 @@ def screen_sectors(top_n: int = SECTOR_TOP_N, concurrency: int = SECTOR_CONCURRE
     leaders = sorted(ranked, key=lambda item: item["return_10d"], reverse=True)[:top_n]
     # 板块逐个处理以控制东方财富并发量；板块内部并发拉取个股日 K。
     items = [_board_strength(board, concurrency) for board in leaders]
+    if len(items) != top_n or any(item["valid_count"] == 0 for item in items):
+        raise RuntimeError("强势板块有效成分股数据不完整，本次不保存快照")
     items.sort(key=lambda item: (item["strong_ratio"], item["return_10d"]), reverse=True)
     for rank, item in enumerate(items, 1):
         item["rank"] = rank
@@ -176,7 +178,12 @@ def screen_sectors(top_n: int = SECTOR_TOP_N, concurrency: int = SECTOR_CONCURRE
 def refresh_sectors(force: bool = False) -> dict:
     trade_date = get_last_trade_date()
     existing = get_sector_snapshot(trade_date)
-    if existing and not force:
+    valid_existing = (
+        existing
+        and len(existing["items"]) == SECTOR_TOP_N
+        and all(item.get("valid_count", 0) > 0 for item in existing["items"])
+    )
+    if valid_existing and not force:
         return {"trade_date": trade_date, "reused": True, "items": existing["items"]}
     result = screen_sectors()
     result["reused"] = False
