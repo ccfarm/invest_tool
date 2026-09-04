@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
-from .config import SECTOR_CONCURRENCY, SECTOR_TOP_N
+from .config import SECTOR_CONCURRENCY, SECTOR_MIN_STOCKS, SECTOR_TOP_N
 from .db import get_latest_sector_snapshot, get_sector_snapshot, save_sector_snapshot
 from .microcap import _get, fetch_kline, get_last_trade_date
 
@@ -49,19 +49,23 @@ def fetch_industry_boards() -> list[dict]:
         params = {
             "pn": page, "pz": 100, "po": 1, "np": 1, "ut": UT, "fltt": 2,
             "invt": 2, "fid": "f3", "fs": "m:90+t:2+f:!50",
-            "fields": "f12,f14,f160",
+            "fields": "f12,f14,f104,f105,f106,f160",
         }
         data = _json_get(f"{CLIST_URL}?{urllib.parse.urlencode(params)}")
         payload = data.get("data") or {}
         rows = payload.get("diff") or []
-        boards.extend(
-            {
-                "code": row["f12"], "name": row["f14"],
-                "return_10d": float(row["f160"]),
-            }
-            for row in rows
-            if row.get("f12") and row.get("f14") and row.get("f160") not in (None, "-")
-        )
+        for row in rows:
+            stock_count = sum(int(row.get(field) or 0) for field in ("f104", "f105", "f106"))
+            if (
+                row.get("f12")
+                and row.get("f14")
+                and row.get("f160") not in (None, "-")
+                and stock_count > SECTOR_MIN_STOCKS
+            ):
+                boards.append({
+                    "code": row["f12"], "name": row["f14"],
+                    "return_10d": float(row["f160"]), "stock_count": stock_count,
+                })
         if not rows or page * 100 >= (payload.get("total") or 0):
             break
         page += 1
@@ -134,6 +138,7 @@ def _board_strength(board: dict, concurrency: int) -> dict:
         "code": board["code"], "name": board["name"],
         "return_10d": round(board["return_10d"], 2),
         "strong_count": strong_count, "valid_count": valid_count,
+        "stock_count": board["stock_count"],
         "strong_ratio": round(ratio, 1),
         "url": f"https://quote.eastmoney.com/bk/90.{board['code']}.html",
     }
@@ -160,7 +165,11 @@ def refresh_sectors(force: bool = False) -> dict:
     valid_existing = (
         existing
         and len(existing["items"]) == SECTOR_TOP_N
-        and all(item.get("valid_count", 0) > 0 for item in existing["items"])
+        and all(
+            item.get("valid_count", 0) > 0
+            and item.get("stock_count", 0) > SECTOR_MIN_STOCKS
+            for item in existing["items"]
+        )
     )
     if valid_existing and not force:
         return {"trade_date": trade_date, "reused": True, "items": existing["items"]}

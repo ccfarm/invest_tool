@@ -20,13 +20,23 @@ def test_fetch_industry_boards_uses_industry_scope(monkeypatch):
     def fake_get(url):
         seen.append(url)
         return json.dumps({"data": {"diff": [
-            {"f12": "BK1031", "f14": "半导体", "f160": 12.34},
+            {
+                "f12": "BK1031", "f14": "半导体", "f160": 12.34,
+                "f104": 8, "f105": 3, "f106": 0,
+            },
+            {
+                "f12": "BK0001", "f14": "小行业", "f160": 99.0,
+                "f104": 8, "f105": 2, "f106": 0,
+            },
             {"f12": None, "f14": "无代码"},
         ]}})
 
     monkeypatch.setattr(sector, "_get", fake_get)
     assert sector.fetch_industry_boards() == [
-        {"code": "BK1031", "name": "半导体", "return_10d": 12.34}
+        {
+            "code": "BK1031", "name": "半导体", "return_10d": 12.34,
+            "stock_count": 11,
+        }
     ]
     assert "m%3A90%2Bt%3A2%2Bf%3A%2150" in seen[0]
 
@@ -46,9 +56,9 @@ def test_fetch_stock_closes_uses_exchange_prefix(monkeypatch):
 
 def test_screen_sectors_prefilters_by_return_then_sorts_by_ratio(monkeypatch):
     boards = [
-        {"code": "BK0001", "name": "甲"},
-        {"code": "BK0002", "name": "乙"},
-        {"code": "BK0003", "name": "丙"},
+        {"code": "BK0001", "name": "甲", "stock_count": 11},
+        {"code": "BK0002", "name": "乙", "stock_count": 12},
+        {"code": "BK0003", "name": "丙", "stock_count": 13},
     ]
     returns = {"BK0001": 3.0, "BK0002": 9.0, "BK0003": 6.0}
     boards = [{**board, "return_10d": returns[board["code"]]} for board in boards]
@@ -64,7 +74,8 @@ def test_screen_sectors_prefilters_by_return_then_sorts_by_ratio(monkeypatch):
             "code": board["code"], "name": board["name"],
             "return_10d": board["return_10d"],
             "strong_count": int(ratios[board["code"]] / 10), "valid_count": 10,
-            "strong_ratio": ratios[board["code"]], "url": "https://example.com",
+            "strong_ratio": ratios[board["code"]], "stock_count": board["stock_count"],
+            "url": "https://example.com",
         },
     )
     monkeypatch.setattr(sector, "save_sector_snapshot", lambda day, items: saved.append((day, items)))
@@ -83,7 +94,10 @@ def test_refresh_sectors_reuses_same_trade_date(monkeypatch):
         "get_sector_snapshot",
         lambda day: {
             "trade_date": day,
-            "items": [{"code": f"BK{i:04d}", "valid_count": 10} for i in range(20)],
+            "items": [
+                {"code": f"BK{i:04d}", "valid_count": 10, "stock_count": 11}
+                for i in range(20)
+            ],
         },
     )
     monkeypatch.setattr(

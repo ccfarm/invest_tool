@@ -97,7 +97,8 @@ docker run -p 80:80 -v invest-data:/app/backend/data invest-tools
 `CONCURRENCY`、`MARKET_PAGE_LIMIT`、`CRAWL_INTERVAL`、`SCHEDULE_INTERVAL`、
 `MICROCAP_INTERVAL`、`MICROCAP_TOP_N_PER_BOARD`（每板默认 10）、`TREND_INTERVAL`、`TREND_UP_DAYS`、`TREND_TOP_N`、
 `TREND_KLINE_DAYS`、`TREND_CONCURRENCY`、`SECTOR_INTERVAL`、`SECTOR_TOP_N` 与
-`SECTOR_CONCURRENCY`。
+`SECTOR_CONCURRENCY` 与 `SECTOR_MIN_STOCKS`。
 
 顶部导航“右侧品种”每天针对最近完整交易日生成一次：先按东方财富行业板块近
-10 个交易日涨幅取前 20，再按成分股中 `MA5 > MA10 > MA20` 的比例降序展示。
+10 个交易日涨幅取前 20（仅统计成分股数量大于 10 的行业），再按成分股中
+`MA5 > MA10 > MA20` 的比例降序展示。
