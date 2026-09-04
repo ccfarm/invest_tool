@@ -42,6 +42,19 @@ def test_ten_day_return_uses_eleven_closes(monkeypatch):
     assert result["return_10d"] == pytest.approx(10.0)
 
 
+def test_fetch_stock_closes_uses_exchange_prefix(monkeypatch):
+    seen = []
+
+    def fake_kline(symbol, datalen):
+        seen.append((symbol, datalen))
+        return [{"close": "12.34"}] * 20
+
+    monkeypatch.setattr(sector, "fetch_kline", fake_kline)
+    assert len(sector.fetch_stock_closes("300010")) == 20
+    assert len(sector.fetch_stock_closes("600880")) == 20
+    assert seen == [("sz300010", 20), ("sh600880", 20)]
+
+
 def test_screen_sectors_prefilters_by_return_then_sorts_by_ratio(monkeypatch):
     boards = [
         {"code": "BK0001", "name": "甲"},

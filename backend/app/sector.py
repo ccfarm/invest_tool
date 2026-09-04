@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo
 
 from .config import SECTOR_CONCURRENCY, SECTOR_TOP_N
 from .db import get_latest_sector_snapshot, get_sector_snapshot, save_sector_snapshot
-from .microcap import _get, get_last_trade_date
+from .microcap import _get, fetch_kline, get_last_trade_date
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +111,12 @@ def is_strong(closes: list[float]) -> bool:
     return ma5 > ma10 > ma20
 
 
+def fetch_stock_closes(code: str) -> list[float]:
+    """复用项目已稳定运行的新浪个股日 K，避免东方财富个股日 K 高频断连。"""
+    prefix = "sh" if code.startswith(("6", "9")) else "sz"
+    return [float(bar["close"]) for bar in fetch_kline(f"{prefix}{code}", datalen=20)]
+
+
 def _ten_day_return(board: dict) -> dict | None:
     try:
         closes = fetch_kline_closes(f"90.{board['code']}", 11)
@@ -124,7 +130,7 @@ def _ten_day_return(board: dict) -> dict | None:
 
 def _member_strong(member: dict) -> bool | None:
     try:
-        closes = fetch_kline_closes(f"{member['market']}.{member['code']}", 20)
+        closes = fetch_stock_closes(member["code"])
     except (OSError, ValueError, KeyError):
         return None
     return is_strong(closes) if len(closes) >= 20 else None
