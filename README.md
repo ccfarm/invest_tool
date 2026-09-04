@@ -2,20 +2,20 @@
 
 一个以 Next.js 为 Web 全栈、Python 为数据采集器的 A 股工具箱。页面与 API 由
 Next.js App Router 提供；股东、微盘股、趋势和 K 线数据由 Python 抓取；两者通过
-SQLite 共享持久化数据。
+PostgreSQL 共享持久化数据。
 
 ## 技术架构
 
 ```
-浏览器 ──> Next.js 页面 / Route Handlers ──> SQLite
+浏览器 ──> Next.js 页面 / Route Handlers ──> PostgreSQL
                          │
                          └── 按需调用 Python（刷新、K 线）
-Python 独立调度进程 ────────────────────────> SQLite
+Python 独立调度进程 ────────────────────────> PostgreSQL
 ```
 
 - `frontend/app/`：Next.js 页面、SSR metadata、API Route Handlers
 - `frontend/components/`：React 客户端交互组件
-- `frontend/lib/db.js`：Node.js SQLite 数据访问和登录会话
+- `frontend/lib/db.js`：Node.js PostgreSQL 数据访问和登录会话
 - `backend/app/crawler.py`：十大股东采集
 - `backend/app/microcap.py`：微盘股采集
 - `backend/app/trend.py`：趋势筛选与 K 线采集
@@ -40,8 +40,8 @@ npm install
 PYTHON_BIN=../backend/.venv/bin/python npm run dev
 ```
 
-开发服务默认端口是 3000。`DB_PATH` 未设置时使用
-`backend/data/shareholders.db`。
+开发服务默认端口是 3000。通过 `DATABASE_URL` 指定 PostgreSQL，例如
+`postgresql://invest_tool:password@127.0.0.1:5432/invest_tool`。
 
 ## Python 数据采集
 
@@ -84,13 +84,13 @@ docker build -t invest-tools .
 docker run -p 80:80 -v invest-data:/app/backend/data invest-tools
 ```
 
-服务器部署脚本会注册两个 systemd 服务：`invest-tool.service`（Next.js）与
+服务器部署脚本会安装并初始化 PostgreSQL、从旧 SQLite 完成一次性数据导入，并注册两个 systemd 服务：`invest-tool.service`（Next.js）与
 `invest-tool-crawler.service`（Python）。生产数据库默认位于
-`/var/lib/invest_tool/shareholders.db`。
+`/var/lib/postgresql/`；旧 SQLite 文件会保留作为回滚备份。
 
 ## 配置
 
-常用环境变量：`DB_PATH`、`DATA_DIR`、`PYTHON_BIN`、`SITE_URL`、
+常用环境变量：`DATABASE_URL`、`DB_PATH`（仅旧库迁移）、`DATA_DIR`、`PYTHON_BIN`、`SITE_URL`、
 `AUTH_USERNAME`、`AUTH_PASSWORD`、`TOKEN_TTL_SECONDS`、`TRACK_STOCKS`、
 `CONCURRENCY`、`MARKET_PAGE_LIMIT`、`CRAWL_INTERVAL`、`SCHEDULE_INTERVAL`、
 `MICROCAP_INTERVAL`、`TREND_INTERVAL`、`TREND_UP_DAYS`、`TREND_TOP_N`、

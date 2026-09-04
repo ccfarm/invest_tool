@@ -11,7 +11,7 @@ apt update
 apt install -y git python3 python3-venv curl
 
 # Ubuntu 自带 nodejs 版本过旧，用 NodeSource 安装 Node 22（Next.js 与 node:sqlite 需要）
-if ! command -v node >/dev/null 2>&1 || [ "$(node -v | tr -d 'v' | cut -d. -f1)" -lt 20 ]; then
+if ! command -v node >/dev/null 2>&1 || [ "$(node -v | tr -d 'v' | cut -d. -f1)" -lt 22 ]; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   apt install -y nodejs
 fi

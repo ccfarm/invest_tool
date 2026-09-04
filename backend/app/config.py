@@ -5,6 +5,9 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.getenv("DATA_DIR", str(BASE_DIR / "data")))
 DB_PATH = Path(os.getenv("DB_PATH", str(DATA_DIR / "shareholders.db")))
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", "postgresql://invest_tool:invest_tool@127.0.0.1:5432/invest_tool"
+)
 
 # 定时爬取的股票池（东方财富十大股东）
 TRACK_STOCKS = [
