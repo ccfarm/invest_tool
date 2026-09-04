@@ -36,6 +36,9 @@ if ! backend/.venv/bin/python -c "import psycopg" >/dev/null 2>&1; then
   backend/.venv/bin/pip install -r backend/requirements.txt
 fi
 
+echo "==> 更新数据库结构..."
+(cd backend && .venv/bin/python -c "from app.db import init_db; init_db()")
+
 echo "==> 停止旧服务并迁移 SQLite 数据..."
 systemctl stop invest-tool-crawler 2>/dev/null || true
 systemctl stop invest-tool 2>/dev/null || true

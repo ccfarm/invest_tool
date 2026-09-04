@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
-import { dates, login, logout, microcap, pv, search, trend, usernameFor } from '@/lib/db'
+import { dates, login, logout, microcap, pv, search, sectors, trend, usernameFor } from '@/lib/db'
 
 export const runtime = 'nodejs'; export const dynamic = 'force-dynamic'
 const json=(body,status=200)=>NextResponse.json(body,{status})
@@ -18,6 +18,7 @@ export async function GET(req,{params}){const p=(await params).path.join('/'),u=
   if(p==='trend/dates')return json(await dates('trend_snapshots'))
   if(p==='trend/history'){const value=await trend(u.searchParams.get('date'));return value.trade_date?json(value):json({detail:'未找到快照'},404)}
   if(p==='trend/kline')return json(await crawler('kline',[u.searchParams.get('code')||'']))
+  if(p==='sectors/latest')return json(await sectors())
   if(p==='auth/me'){const username=await usernameFor(bearer(req));return username?json({username}):json({detail:'登录已过期，请重新登录'},401)}
   return json({detail:'Not found'},404)
 }catch(e){return json({detail:e.message},500)}}
@@ -27,5 +28,6 @@ export async function POST(req,{params}){const p=(await params).path.join('/');t
   if(p==='auth/logout'){const token=bearer(req);if(!await usernameFor(token))return json({detail:'未登录'},401);await logout(token);return json({ok:true})}
   if(p==='microcap/refresh')return json(await crawler('microcap'))
   if(p==='trend/refresh')return json(await crawler('trend'))
+  if(p==='sectors/refresh')return json(await crawler('sector'))
   return json({detail:'Not found'},404)
 }catch(e){return json({detail:e.message},500)}}

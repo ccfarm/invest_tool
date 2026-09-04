@@ -71,6 +71,8 @@ python -m app.scheduler
 - `GET /api/trend/latest|dates|history?date=YYYY-MM-DD`
 - `POST /api/trend/refresh`
 - `GET /api/trend/kline?code=600519`
+- `GET /api/sectors/latest`
+- `POST /api/sectors/refresh`
 - `POST /api/auth/login|logout`、`GET /api/auth/me`
 
 ## 验证与部署
@@ -94,4 +96,8 @@ docker run -p 80:80 -v invest-data:/app/backend/data invest-tools
 `AUTH_USERNAME`、`AUTH_PASSWORD`、`TOKEN_TTL_SECONDS`、`TRACK_STOCKS`、
 `CONCURRENCY`、`MARKET_PAGE_LIMIT`、`CRAWL_INTERVAL`、`SCHEDULE_INTERVAL`、
 `MICROCAP_INTERVAL`、`MICROCAP_TOP_N_PER_BOARD`（每板默认 10）、`TREND_INTERVAL`、`TREND_UP_DAYS`、`TREND_TOP_N`、
-`TREND_KLINE_DAYS` 与 `TREND_CONCURRENCY`。
+`TREND_KLINE_DAYS`、`TREND_CONCURRENCY`、`SECTOR_INTERVAL`、`SECTOR_TOP_N` 与
+`SECTOR_CONCURRENCY`。
+
+页面右侧“近期强势板块”每天针对最近完整交易日生成一次：先按东方财富行业板块近
+10 个交易日涨幅取前 20，再按成分股中 `MA5 > MA10 > MA20` 的比例降序展示。

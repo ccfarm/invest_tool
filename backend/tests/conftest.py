@@ -33,7 +33,9 @@ main_module.FRONTEND_DIST = _FAKE_DIST
 
 
 @pytest.fixture(autouse=True)
-def seed_db():
+def seed_db(request):
+    if request.node.get_closest_marker("no_db"):
+        return
     init_auth_user(AUTH_USERNAME, AUTH_PASSWORD)
     upsert_holdings(
         [

@@ -64,3 +64,8 @@ TREND_KLINE_TTL = int(os.getenv("TREND_KLINE_TTL", "300"))
 
 # 趋势筛选并发拉取日 K 的线程数
 TREND_CONCURRENCY = int(os.getenv("TREND_CONCURRENCY", "8"))
+
+# 强势板块：先按近 10 个交易日涨幅取前 20 个行业，再按均线多头个股占比排序
+SECTOR_INTERVAL = int(os.getenv("SECTOR_INTERVAL", "3600"))
+SECTOR_TOP_N = int(os.getenv("SECTOR_TOP_N", "20"))
+SECTOR_CONCURRENCY = int(os.getenv("SECTOR_CONCURRENCY", "12"))
