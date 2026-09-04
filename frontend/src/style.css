@@ -175,120 +175,6 @@ button {
   max-width: 1200px;
   margin: 0 auto;
   padding: 32px 16px 48px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 310px;
-  align-items: start;
-  gap: 24px;
-}
-
-.main-content {
-  min-width: 0;
-}
-
-/* 近期强势板块右侧栏 */
-.sector-sidebar {
-  position: sticky;
-  top: 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--card);
-  overflow: hidden;
-}
-
-.sector-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.sector-head h2 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.sector-head p,
-.sector-head time {
-  margin: 5px 0 0;
-  color: var(--muted-foreground);
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.sector-list {
-  list-style: none;
-  margin: 0;
-  padding: 6px 0;
-}
-
-.sector-list li a {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) 48px 58px;
-  align-items: center;
-  gap: 5px;
-  min-height: 35px;
-  padding: 4px 12px;
-  color: var(--foreground);
-  text-decoration: none;
-  font-size: 13px;
-}
-
-.sector-list li a:hover {
-  background: var(--muted);
-}
-
-.sector-rank,
-.sector-count {
-  color: var(--muted-foreground);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.sector-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sector-ratio,
-.sector-return {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.sector-ratio {
-  color: var(--primary);
-  font-weight: 600;
-}
-
-.sector-return.up { color: var(--state-error); }
-.sector-return.down { color: var(--state-success); }
-
-.sector-count {
-  grid-column: 3;
-  text-align: right;
-  margin-top: -7px;
-}
-
-.sector-legend,
-.sector-message {
-  color: var(--muted-foreground);
-  font-size: 11px;
-}
-
-.sector-legend {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
-  border-top: 1px solid var(--border);
-}
-
-.sector-message {
-  margin: 0;
-  padding: 32px 16px;
-  text-align: center;
 }
 
 /* 页脚 */
@@ -609,6 +495,43 @@ tbody tr:hover {
   border-bottom-color: var(--primary);
 }
 
+/* 右侧品种页 */
+.sector-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.sector-intro h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.sector-intro p,
+.sector-intro time {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.sector-intro time {
+  white-space: nowrap;
+}
+
+.sector-ratio {
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.market-up {
+  color: var(--state-error);
+}
+
+.market-down {
+  color: var(--state-success);
+}
+
 /* 悬停 K 线提示 */
 .kline-tip {
   position: fixed;
@@ -729,19 +652,6 @@ tbody tr:hover {
 
 /* 响应式 */
 @media (max-width: 640px) {
-  .main {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .main-content,
-  .sector-sidebar {
-    width: 100%;
-  }
-
-  .sector-sidebar {
-    position: static;
-  }
   .nav-inner {
     gap: 12px;
   }
@@ -756,5 +666,11 @@ tbody tr:hover {
 
   .btn {
     width: 100%;
+  }
+
+  .sector-intro {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
   }
 }

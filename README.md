@@ -99,5 +99,5 @@ docker run -p 80:80 -v invest-data:/app/backend/data invest-tools
 `TREND_KLINE_DAYS`、`TREND_CONCURRENCY`、`SECTOR_INTERVAL`、`SECTOR_TOP_N` 与
 `SECTOR_CONCURRENCY`。
 
-页面右侧“近期强势板块”每天针对最近完整交易日生成一次：先按东方财富行业板块近
+顶部导航“右侧品种”每天针对最近完整交易日生成一次：先按东方财富行业板块近
 10 个交易日涨幅取前 20，再按成分股中 `MA5 > MA10 > MA20` 的比例降序展示。

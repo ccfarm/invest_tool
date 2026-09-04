@@ -1,1 +1,1 @@
-export default function sitemap(){const base=process.env.SITE_URL||'http://www.cats789.fun';return['','/microcap','/trend'].map(path=>({url:`${base}${path}`,changeFrequency:'daily',priority:path?0.8:1}))}
+export default function sitemap(){const base=process.env.SITE_URL||'http://www.cats789.fun';return['','/microcap','/trend','/sector'].map(path=>({url:`${base}${path}`,changeFrequency:'daily',priority:path?0.8:1}))}
