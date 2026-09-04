@@ -34,9 +34,9 @@ HOME_DESCRIPTION = (
     "覆盖沪深北全市场，数据每日更新。"
 )
 RESULTS_DESCRIPTION = "查看股东姓名或 A 股代码对应的持股记录与持仓变动，覆盖沪深北全市场，数据每日更新。"
-MICROCAP_TITLE = "微盘股筛选 - 总市值最低 30 只 A 股 | 投资工具箱"
+MICROCAP_TITLE = "微盘股筛选 - 四大板块低市值股票 | 投资工具箱"
 MICROCAP_DESCRIPTION = (
-    "查看最近交易日总市值最低的 30 只 A 股微盘股名单，排除 ST 及有 ST 风险的股票，"
+    "查看科创板、创业板、中小板和主板各自总市值最低的 10 只股票，排除 ST 及有 ST 风险的股票，"
     "数据每 6 小时更新。"
 )
 TREND_TITLE = "趋势向上 - MA20 连续上行换手率最低 30 只 A 股 | 投资工具箱"
@@ -236,8 +236,8 @@ def _microcap_snapshot(query_params: dict[str, list[str]]) -> HTMLResponse:
             for item in snap["items"]
         )
         body = f"""
-      <h1>微盘股筛选 - 总市值最低 30 只 A 股</h1>
-      <p>{snap['trade_date']} 入选的微盘股（总市值最低 30 只，排除 ST 及有 ST 风险的股票）。</p>
+      <h1>微盘股筛选 - 四大板块各 10 只</h1>
+      <p>{snap['trade_date']} 入选的微盘股（科创板、创业板、中小板、主板各取最低市值 10 只）。</p>
       <table>
         <thead><tr><th>排名</th><th>代码</th><th>名称</th><th>总市值</th></tr></thead>
         <tbody>{rows}</tbody>

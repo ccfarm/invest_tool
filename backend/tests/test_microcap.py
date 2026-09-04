@@ -95,7 +95,7 @@ def test_backfill_fills_missing_days(monkeypatch):
     assert len(result["filled"]) == 9
     assert "2026-08-07" not in result["filled"]
     items = get_microcap_snapshot("2026-07-28")["items"]
-    assert items == [{"rank": 1, "code": "300000", "name": "候选A", "mktcap_yi": 10.0}]
+    assert items == [{"rank": 1, "board": "创业板", "code": "300000", "name": "候选A", "mktcap_yi": 10.0}]
     # 历史市值 = 当日收盘 1 元 × 总股本 10 亿股 = 10 亿元
     assert items[0]["mktcap_yi"] == 10.0
 

@@ -457,6 +457,32 @@ tbody tr:hover {
   color: var(--muted-foreground);
 }
 
+.board-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+}
+
+.board-tab {
+  min-width: 88px;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.board-tab.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
 /* 趋势向上页 */
 .code-link {
   color: var(--primary);

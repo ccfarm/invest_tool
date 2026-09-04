@@ -4,7 +4,8 @@
 筛选逻辑设计（代码注释即设计文档）
 =====================================================================
 
-目标：每个交易日收盘后，选出全 A 股中总市值最低的 30 只"干净"股票，
+目标：每个交易日收盘后，分别选出科创板、创业板、中小板、主板中
+总市值最低的 10 只"干净"股票，
 并持久化快照，供页面按钮触发、历史下拉查看。
 
 步骤：
@@ -21,7 +22,7 @@
    - fs 只选沪深：沪主板（m:0+t:6）、科创板（m:0+t:80）、
      深主板/中小板（m:1+t:2）、创业板（m:1+t:23）——天然不含北交所。
    - 保留：沪市（600/601/603/605/688/689）、深市主板（000/001/002/003）、
-     创业板（300/301）、科创板（688）——即覆盖"主板+中小板+创业板+科创板"。
+     创业板（300/301）、科创板（688/689）——即覆盖四个目标板块。
    - 过滤：总市值缺失（"-"，多为已退市/PT 股）的直接跳过。
 
 3. 基础排除（按名称）
@@ -47,14 +48,14 @@
      后续可扩展为读取公告正文或接入交易所风险名单。
 
 6. 取结果与快照
-   - 剩余候选按总市值升序，取前 30 只。
+   - 剩余候选按板块分组、总市值升序，每个板块取前 10 只。
    - 快照按 trade_date 唯一写入 microcap_snapshots；
      同一天再次触发时直接复用已有快照，不重复计算（refresh_microcap 检查）。
 
 7. 历史缺失补记（backfill_microcap）
    - 每 6 小时定时任务会检查近 10 个交易日是否有缺失快照；
    - 有缺失时按【历史市值】补齐：历史市值 = 当日收盘价（日K）× 总股本
-     （总股本用当前值近似），对候选池逐日重算后取最低 30 只；
+     （总股本用当前值近似），对候选池逐日重算后每板取最低 10 只；
    - 保证历史下拉里的市值是"该交易日"的市值，而不是当前市值。
 =====================================================================
 """
@@ -69,7 +70,11 @@ import urllib.request
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
-from .config import MICROCAP_BACKFILL_DAYS, MICROCAP_BACKFILL_POOL
+from .config import (
+    MICROCAP_BACKFILL_DAYS,
+    MICROCAP_BACKFILL_POOL,
+    MICROCAP_TOP_N_PER_BOARD,
+)
 from .crawler import USER_AGENT
 from .db import (
     add_blacklist,
@@ -225,7 +230,26 @@ def check_announcement_risk(code: str) -> str | None:
     return None
 
 
-def screen_microcap(pool_size: int = 100, top_n: int = 30) -> dict:
+BOARD_ORDER = ("科创板", "创业板", "中小板", "主板")
+
+
+def board_for_code(code: str) -> str | None:
+    """按股票代码归入页面展示板块；中小板沿用原 002/003 代码口径。"""
+    if code.startswith(("688", "689")):
+        return "科创板"
+    if code.startswith(("300", "301")):
+        return "创业板"
+    if code.startswith(("002", "003")):
+        return "中小板"
+    if code.startswith(("600", "601", "603", "605", "000", "001")):
+        return "主板"
+    return None
+
+
+def screen_microcap(
+    pool_size: int = 100,
+    top_n: int = MICROCAP_TOP_N_PER_BOARD,
+) -> dict:
     """执行筛选（步骤 2~6），返回 {trade_date, items, blacklisted}。"""
     items, newly_blacklisted = _screen_items(pool_size, top_n)
     trade_date = get_last_trade_date()
@@ -237,7 +261,10 @@ def screen_microcap(pool_size: int = 100, top_n: int = 30) -> dict:
     }
 
 
-def _screen_items(pool_size: int = 100, top_n: int = 30) -> tuple[list[dict], list[dict]]:
+def _screen_items(
+    pool_size: int = 100,
+    top_n: int = MICROCAP_TOP_N_PER_BOARD,
+) -> tuple[list[dict], list[dict]]:
     """筛选管线（不含交易日判定），返回 (items, newly_blacklisted)。"""
     stocks = fetch_market_stocks_with_cap()
     blacklist = get_blacklisted_codes()
@@ -259,31 +286,39 @@ def _screen_items(pool_size: int = 100, top_n: int = 30) -> tuple[list[dict], li
             continue
         candidates.append(s)
 
-    candidates.sort(key=lambda s: s["mktcap"])
-    pool = candidates[:pool_size]
+    grouped = {board: [] for board in BOARD_ORDER}
+    for stock in candidates:
+        board = board_for_code(stock["code"])
+        if board:
+            grouped[board].append(stock)
 
-    # ST 风险：公告排查候选池
-    for s in pool:
-        if s["code"] in blacklist:
-            continue
-        try:
-            kw = check_announcement_risk(s["code"])
-        except (OSError, ValueError):
-            logger.warning("公告排查失败：%s，按无风险处理", s["code"])
-            continue
-        if kw:
-            exclude(s["code"], s["name"], f"公告风险:{kw}")
-
-    results = [s for s in candidates if s["code"] not in blacklist][:top_n]
-    items = [
-        {
-            "rank": i + 1,
-            "code": s["code"],
-            "name": s["name"],
-            "mktcap_yi": round(s["mktcap"] / 1e8, 2),
-        }
-        for i, s in enumerate(results)
-    ]
+    items: list[dict] = []
+    for board in BOARD_ORDER:
+        winners: list[dict] = []
+        for stock in sorted(grouped[board], key=lambda s: s["mktcap"])[:pool_size]:
+            if stock["code"] in blacklist:
+                continue
+            try:
+                keyword = check_announcement_risk(stock["code"])
+            except (OSError, ValueError):
+                logger.warning("公告排查失败：%s，按无风险处理", stock["code"])
+                keyword = None
+            if keyword:
+                exclude(stock["code"], stock["name"], f"公告风险:{keyword}")
+                continue
+            winners.append(stock)
+            if len(winners) >= top_n:
+                break
+        items.extend(
+            {
+                "rank": index + 1,
+                "board": board,
+                "code": stock["code"],
+                "name": stock["name"],
+                "mktcap_yi": round(stock["mktcap"] / 1e8, 2),
+            }
+            for index, stock in enumerate(winners)
+        )
     return items, newly_blacklisted
 
 
@@ -295,10 +330,10 @@ def backfill_microcap(
 
     历史市值 = 当日收盘价 × 总股本（总股本用当前值近似，短窗口内基本稳定）。
     流程：
-    1. 取当前市值最低的前 pool_size 只作为候选池（10 天窗口内微盘股变动有限，覆盖足够）；
+    1. 每板取当前市值最低的前 pool_size 只作为候选池；
     2. 逐只拉取最近日 K 收盘价；
     3. 对每个缺失交易日，用当日收盘价×总股本计算历史市值，
-       排除黑名单 / ST / 退 / PT 后取最低 30 只，存入该交易日快照。
+       排除黑名单 / ST / 退 / PT 后按板块各取最低 10 只，存入该交易日快照。
     说明：ST 状态与股本按当前值近似；同日已存在则不覆盖。
     """
     bars = fetch_kline(datalen=days + 5)
@@ -308,7 +343,16 @@ def backfill_microcap(
         return {"missing": [], "filled": []}
 
     stocks = fetch_market_stocks_with_cap()
-    candidates = [s for s in stocks if s["price"]][:pool_size]
+    grouped = {board: [] for board in BOARD_ORDER}
+    for stock in stocks:
+        board = board_for_code(stock["code"])
+        if board and stock["price"]:
+            grouped[board].append(stock)
+    candidates = [
+        stock
+        for board in BOARD_ORDER
+        for stock in sorted(grouped[board], key=lambda s: s["mktcap"])[:pool_size]
+    ]
     blacklist = get_blacklisted_codes()
 
     closes_by_code: dict[str, dict[str, float]] = {}
@@ -331,19 +375,28 @@ def backfill_microcap(
                 continue
             # 总股本 ≈ 当前总市值 / 当前价；历史市值 = 当日收盘价 × 总股本
             shares = s["mktcap"] / s["price"]
-            rows.append(
-                {"code": s["code"], "name": s["name"], "hist_cap": close * shares}
+            rows.append({
+                "board": board_for_code(s["code"]),
+                "code": s["code"],
+                "name": s["name"],
+                "hist_cap": close * shares,
+            })
+        items = []
+        for board in BOARD_ORDER:
+            board_rows = sorted(
+                (row for row in rows if row["board"] == board),
+                key=lambda row: row["hist_cap"],
+            )[:MICROCAP_TOP_N_PER_BOARD]
+            items.extend(
+                {
+                    "rank": index + 1,
+                    "board": board,
+                    "code": row["code"],
+                    "name": row["name"],
+                    "mktcap_yi": round(row["hist_cap"] / 1e8, 2),
+                }
+                for index, row in enumerate(board_rows)
             )
-        rows.sort(key=lambda r: r["hist_cap"])
-        items = [
-            {
-                "rank": i + 1,
-                "code": r["code"],
-                "name": r["name"],
-                "mktcap_yi": round(r["hist_cap"] / 1e8, 2),
-            }
-            for i, r in enumerate(rows[:30])
-        ]
         save_microcap_snapshot(d, items)
         filled.append(d)
     logger.info("微盘股按历史市值补齐 %d 个缺失交易日：%s", len(filled), missing)
