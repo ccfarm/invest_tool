@@ -1,5 +1,6 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /build
+ENV BUILD_STANDALONE=1
 COPY frontend/package*.json ./
 RUN npm install
 COPY frontend/ ./

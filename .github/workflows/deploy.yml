@@ -5,6 +5,10 @@ on:
     branches: [main]
   workflow_dispatch: # 支持在 GitHub 页面手动触发
 
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
