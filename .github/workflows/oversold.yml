@@ -1,0 +1,61 @@
+name: 更新超跌板块
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - backend/app/oversold.py
+      - backend/app/sector.py
+      - scripts/export_oversold_snapshot.py
+      - scripts/import_oversold_snapshot.py
+      - .github/workflows/oversold.yml
+  schedule:
+    # UTC 08:30 = 北京时间 16:30，确保当日收盘数据已更新。
+    - cron: "30 8 * * 1-5"
+  workflow_dispatch:
+
+concurrency:
+  group: production-oversold
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: 安装采集依赖
+        run: pip install -r backend/requirements.txt
+      - name: 计算超跌板块
+        env:
+          PYTHONPATH: backend
+        run: python scripts/export_oversold_snapshot.py > oversold-snapshot.json
+      - name: 上传快照
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          source: oversold-snapshot.json
+          target: /tmp
+          overwrite: true
+      - name: 导入生产数据库
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            set -euo pipefail
+            cd /opt/invest_tool
+            set -a
+            . /etc/invest-tool.env
+            set +a
+            PYTHONPATH=backend backend/.venv/bin/python \
+              scripts/import_oversold_snapshot.py /tmp/oversold-snapshot.json
