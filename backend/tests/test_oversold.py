@@ -15,6 +15,22 @@ def test_percentile_uses_linear_interpolation():
     assert oversold.percentile([0.0, 10.0, 20.0], 5) == pytest.approx(1.0)
 
 
+def test_fetch_board_closes_falls_back_to_another_eastmoney_node(monkeypatch):
+    seen = []
+
+    def fake_get(url):
+        seen.append(url)
+        if len(seen) == 1:
+            raise OSError("node unavailable")
+        return {"data": {"klines": ["2026-09-07,10,11"]}}
+
+    monkeypatch.setattr(oversold, "_json_get", fake_get)
+    monkeypatch.setattr(oversold.time_mod, "sleep", lambda seconds: None)
+    assert oversold.fetch_board_closes("BK0475", 1) == [11.0]
+    assert len(seen) == 2
+    assert seen[0].split("/")[2] != seen[1].split("/")[2]
+
+
 def test_evaluate_board_accepts_current_rsi_below_five_percent_threshold(monkeypatch):
     monkeypatch.setattr(oversold, "fetch_board_closes", lambda code, limit: [10.0] * limit)
     monkeypatch.setattr(

@@ -20,9 +20,8 @@ from .microcap import get_last_trade_date
 from .sector import UT, _json_get, fetch_industry_boards
 
 logger = logging.getLogger(__name__)
-# 生产服务器访问该接口的 HTTPS 入口会被上游批量断连；同域名的 HTTP
-# 入口由东方财富正常提供，并返回相同的公开行情数据。
-KLINE_URL = "http://push2his.eastmoney.com/api/qt/stock/kline/get"
+KLINE_HOSTS = ("7", "33", "63", "91")
+KLINE_PATH = "/api/qt/stock/kline/get"
 KLINE_REQUEST_INTERVAL = 0.5
 _kline_lock = threading.Lock()
 _last_kline_request = 0.0
@@ -49,9 +48,22 @@ def fetch_board_closes(board_code: str, limit: int) -> list[float]:
         "lmt": limit, "end": "20500101", "fields1": "f1,f2,f3,f4,f5,f6",
         "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
     }
-    data = _json_get(f"{KLINE_URL}?{urllib.parse.urlencode(params)}")
-    rows = (data.get("data") or {}).get("klines") or []
-    return [float(row.split(",")[2]) for row in rows]
+    query = urllib.parse.urlencode(params)
+    start = int(board_code.removeprefix("BK")) % len(KLINE_HOSTS)
+    last_error: Exception | None = None
+    for offset in range(len(KLINE_HOSTS)):
+        host = KLINE_HOSTS[(start + offset) % len(KLINE_HOSTS)]
+        url = f"http://{host}.push2his.eastmoney.com{KLINE_PATH}?{query}"
+        try:
+            data = _json_get(url)
+            rows = (data.get("data") or {}).get("klines") or []
+            if rows:
+                return [float(row.split(",")[2]) for row in rows]
+        except (OSError, ValueError, KeyError) as exc:
+            last_error = exc
+    if last_error:
+        raise last_error
+    return []
 
 
 def calculate_rsi(closes: list[float], period: int = OVERSOLD_RSI_PERIOD) -> list[float]:
