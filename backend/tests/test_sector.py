@@ -1,5 +1,3 @@
-import json
-
 import pytest
 
 from app import sector
@@ -19,7 +17,7 @@ def test_fetch_industry_boards_uses_industry_scope(monkeypatch):
 
     def fake_get(url):
         seen.append(url)
-        return json.dumps({"data": {"diff": [
+        return {"data": {"diff": [
             {
                 "f12": "BK1031", "f14": "半导体", "f160": 12.34,
                 "f104": 8, "f105": 3, "f106": 0,
@@ -29,9 +27,9 @@ def test_fetch_industry_boards_uses_industry_scope(monkeypatch):
                 "f104": 8, "f105": 2, "f106": 0,
             },
             {"f12": None, "f14": "无代码"},
-        ]}})
+        ]}}
 
-    monkeypatch.setattr(sector, "_get", fake_get)
+    monkeypatch.setattr(sector, "_json_get", fake_get)
     assert sector.fetch_industry_boards() == [
         {
             "code": "BK1031", "name": "半导体", "return_10d": 12.34,

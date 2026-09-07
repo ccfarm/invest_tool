@@ -13,13 +13,14 @@ import logging
 import threading
 import time as time_mod
 import urllib.parse
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
 from .config import SECTOR_CONCURRENCY, SECTOR_MIN_STOCKS, SECTOR_TOP_N
 from .db import get_latest_sector_snapshot, get_sector_snapshot, save_sector_snapshot
-from .microcap import _get, fetch_kline, get_last_trade_date
+from .microcap import USER_AGENT, fetch_kline, get_last_trade_date
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,22 @@ def _json_get(url: str) -> dict:
         if wait > 0:
             time_mod.sleep(wait)
         _last_request = time_mod.monotonic()
-    return json.loads(_get(url)) or {}
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Referer": "https://quote.eastmoney.com/",
+        "Accept": "application/json,text/plain,*/*",
+    }
+    for attempt in range(3):
+        try:
+            request = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(request, timeout=30) as response:
+                body = response.read().decode("utf-8", errors="ignore").lstrip("\ufeff")
+            return json.loads(body) or {}
+        except (OSError, json.JSONDecodeError):
+            if attempt == 2:
+                raise
+            time_mod.sleep(2**attempt)
+    return {}
 
 
 def fetch_industry_boards() -> list[dict]:
