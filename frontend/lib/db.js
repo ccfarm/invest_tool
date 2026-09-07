@@ -14,4 +14,5 @@ export async function search(q,page,pageSize){q=q.trim();const numeric=/^\d+$/.t
 async function snapshot(table,date){const{rows}=date?await pool.query(`SELECT trade_date,created_at,items FROM ${table} WHERE trade_date=$1`,[date]):await pool.query(`SELECT trade_date,created_at,items FROM ${table} ORDER BY trade_date DESC LIMIT 1`);return rows[0]?{...rows[0],items:JSON.parse(rows[0].items)}:{trade_date:null,created_at:null,items:[]}}
 export const microcap=d=>snapshot('microcap_snapshots',d);export const trend=d=>snapshot('trend_snapshots',d)
 export const sectors=()=>snapshot('sector_snapshots')
+export const oversold=()=>snapshot('oversold_snapshots')
 export async function dates(table){const{rows}=await pool.query(`SELECT trade_date,created_at FROM ${table} ORDER BY trade_date DESC LIMIT 20`);return{dates:rows}}

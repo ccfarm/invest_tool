@@ -4,9 +4,16 @@ from __future__ import annotations
 import logging
 import threading
 
-from .config import MICROCAP_INTERVAL, SCHEDULE_INTERVAL, SECTOR_INTERVAL, TREND_INTERVAL
+from .config import (
+    MICROCAP_INTERVAL,
+    OVERSOLD_INTERVAL,
+    SCHEDULE_INTERVAL,
+    SECTOR_INTERVAL,
+    TREND_INTERVAL,
+)
 from .crawler import crawl_market
 from .microcap import scheduled_microcap
+from .oversold import scheduled_oversold
 from .sector import scheduled_sectors
 from .trend import scheduled_trend
 
@@ -22,7 +29,7 @@ def loop(name: str, task, interval: int, delay: int) -> None:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    jobs=(("全市场股东",crawl_market,SCHEDULE_INTERVAL,60),("微盘股",scheduled_microcap,MICROCAP_INTERVAL,30),("趋势",scheduled_trend,TREND_INTERVAL,45),("强势板块",scheduled_sectors,SECTOR_INTERVAL,75))
+    jobs=(("全市场股东",crawl_market,SCHEDULE_INTERVAL,60),("微盘股",scheduled_microcap,MICROCAP_INTERVAL,30),("趋势",scheduled_trend,TREND_INTERVAL,45),("强势板块",scheduled_sectors,SECTOR_INTERVAL,75),("超跌板块",scheduled_oversold,OVERSOLD_INTERVAL,90))
     threads=[threading.Thread(target=loop,args=job,daemon=True,name=job[0]) for job in jobs]
     for thread in threads: thread.start()
     for thread in threads: thread.join()

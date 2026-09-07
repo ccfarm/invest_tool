@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS microcap_blacklist(code TEXT PRIMARY KEY,name TEXT,re
 CREATE TABLE IF NOT EXISTS microcap_snapshots(id BIGSERIAL PRIMARY KEY,trade_date TEXT UNIQUE,created_at TEXT,items TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS trend_snapshots(id BIGSERIAL PRIMARY KEY,trade_date TEXT UNIQUE,created_at TEXT,items TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sector_snapshots(id BIGSERIAL PRIMARY KEY,trade_date TEXT UNIQUE,created_at TEXT,items TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS oversold_snapshots(id BIGSERIAL PRIMARY KEY,trade_date TEXT UNIQUE,created_at TEXT,items TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS users(id BIGSERIAL PRIMARY KEY,username TEXT NOT NULL UNIQUE,password_hash TEXT NOT NULL,created_at TEXT);
 CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY,username TEXT NOT NULL,created_at TEXT,expires_at TEXT);
 """
@@ -157,6 +158,9 @@ def list_trend_dates(limit: int = 20) -> list[dict]: return _list_dates("trend_s
 def save_sector_snapshot(trade_date: str, items: list[dict]) -> None: _save_snapshot("sector_snapshots",trade_date,items)
 def get_sector_snapshot(trade_date: str) -> dict | None: return _get_snapshot("sector_snapshots",trade_date)
 def get_latest_sector_snapshot() -> dict | None: return _get_snapshot("sector_snapshots")
+def save_oversold_snapshot(trade_date: str, items: list[dict]) -> None: _save_snapshot("oversold_snapshots",trade_date,items)
+def get_oversold_snapshot(trade_date: str) -> dict | None: return _get_snapshot("oversold_snapshots",trade_date)
+def get_latest_oversold_snapshot() -> dict | None: return _get_snapshot("oversold_snapshots")
 
 
 def init_auth_user(username: str, password: str) -> None:

@@ -70,3 +70,9 @@ SECTOR_INTERVAL = int(os.getenv("SECTOR_INTERVAL", "3600"))
 SECTOR_TOP_N = int(os.getenv("SECTOR_TOP_N", "20"))
 SECTOR_CONCURRENCY = int(os.getenv("SECTOR_CONCURRENCY", "12"))
 SECTOR_MIN_STOCKS = int(os.getenv("SECTOR_MIN_STOCKS", "10"))
+
+# 超跌板块：RSI(14) 落在最近 200 个交易日的倒数 5% 分位
+OVERSOLD_INTERVAL = int(os.getenv("OVERSOLD_INTERVAL", "3600"))
+OVERSOLD_RSI_PERIOD = int(os.getenv("OVERSOLD_RSI_PERIOD", "14"))
+OVERSOLD_LOOKBACK = int(os.getenv("OVERSOLD_LOOKBACK", "200"))
+OVERSOLD_PERCENTILE = float(os.getenv("OVERSOLD_PERCENTILE", "5"))
