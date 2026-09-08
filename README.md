@@ -1,7 +1,7 @@
 # 投资工具箱
 
 一个以 Next.js 为 Web 全栈、Python 为数据采集器的 A 股工具箱。页面与 API 由
-Next.js App Router 提供；股东、微盘股、趋势和 K 线数据由 Python 抓取；两者通过
+Next.js App Router 提供；股东、微盘股、趋势、红利低波和 K 线数据由 Python 抓取；两者通过
 PostgreSQL 共享持久化数据。
 
 ## 技术架构
@@ -19,6 +19,7 @@ Python 独立调度进程 ──────────────────
 - `backend/app/crawler.py`：十大股东采集
 - `backend/app/microcap.py`：微盘股采集
 - `backend/app/trend.py`：趋势筛选与 K 线采集
+- `backend/app/dividend.py`：连续分红与低波动股票筛选
 - `backend/app/jobs.py`：单次采集命令入口
 - `backend/app/scheduler.py`：独立常驻调度器
 
@@ -55,6 +56,7 @@ python -m app.jobs market
 python -m app.jobs market --force
 python -m app.jobs microcap
 python -m app.jobs trend
+python -m app.jobs dividend
 python -m app.scheduler
 ```
 
@@ -71,6 +73,8 @@ python -m app.scheduler
 - `GET /api/trend/latest|dates|history?date=YYYY-MM-DD`
 - `POST /api/trend/refresh`
 - `GET /api/trend/kline?code=600519`
+- `GET /api/dividend/latest|dates|history?date=YYYY-MM-DD`
+- `POST /api/dividend/refresh`
 - `GET /api/sectors/latest`
 - `POST /api/sectors/refresh`
 - `GET /api/oversold/latest`
@@ -101,6 +105,13 @@ docker run -p 80:80 -v invest-data:/app/backend/data invest-tools
 `TREND_KLINE_DAYS`、`TREND_CONCURRENCY`、`SECTOR_INTERVAL`、`SECTOR_TOP_N` 与
 `SECTOR_CONCURRENCY`、`SECTOR_MIN_STOCKS`、`OVERSOLD_INTERVAL`、
 `OVERSOLD_RSI_PERIOD`、`OVERSOLD_LOOKBACK` 与 `OVERSOLD_PERCENTILE`。
+
+顶部导航“红利低波”筛选最近 5 个完整财年均实施现金分红、5 年平均股息率不低于
+3% 的沪深 A 股；先按平均股息率取候选池，再按近 60 个交易日年化波动率从低到高
+精选。页面同时展示当日、近 20 日、近 60 日涨幅、RSI(14)、近 250 日 RSI 分位和
+近 5 年股价分位。相关参数可通过 `DIVIDEND_INTERVAL`、`DIVIDEND_YEARS`、
+`DIVIDEND_MIN_AVG_YIELD`、`DIVIDEND_CANDIDATE_POOL`、`DIVIDEND_TOP_N`、
+`DIVIDEND_KLINE_DAYS` 与 `DIVIDEND_CONCURRENCY` 调整。
 
 顶部导航“右侧品种”每天针对最近完整交易日生成一次：先按东方财富行业板块近
 10 个交易日涨幅取前 20（仅统计成分股数量大于 10 的行业），再按成分股中

@@ -26,16 +26,19 @@ from .db import (
     create_session,
     delete_session,
     find_session_username,
+    get_dividend_snapshot,
     get_microcap_snapshot,
     get_password_hash,
     get_pv,
     get_trend_snapshot,
     init_auth_user,
+    list_dividend_dates,
     list_microcap_dates,
     list_trend_dates,
     record_pv,
     search,
 )
+from .dividend import latest_dividend, refresh_dividend
 from .microcap import latest_microcap, refresh_microcap, scheduled_microcap
 from .seo import crawler_snapshot, is_crawler
 from .trend import (
@@ -258,6 +261,27 @@ class TrendKlineResponse(BaseModel):
     bars: list[TrendKlineBar]
 
 
+class DividendItem(BaseModel):
+    rank: int
+    code: str
+    name: str
+    price: float
+    avg_dividend_yield: float
+    change_day: float
+    change_20d: float
+    change_60d: float
+    rsi: float
+    rsi_percentile: float
+    price_percentile: float
+    volatility_60d: float
+
+
+class DividendSnapshotResponse(BaseModel):
+    trade_date: str | None
+    created_at: str | None = None
+    items: list[DividendItem]
+
+
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -362,6 +386,29 @@ def trend_kline(code: str = Query(..., min_length=6, max_length=6, description="
     except (OSError, ValueError):
         raise HTTPException(status_code=502, detail="K 线数据获取失败，请稍后重试")
     return {"code": code, "bars": bars}
+
+
+@app.post("/api/dividend/refresh")
+def dividend_refresh(force: bool = False):
+    return refresh_dividend(force=force)
+
+
+@app.get("/api/dividend/latest", response_model=DividendSnapshotResponse)
+def dividend_latest():
+    return latest_dividend() or {"trade_date": None, "created_at": None, "items": []}
+
+
+@app.get("/api/dividend/dates")
+def dividend_dates():
+    return {"dates": list_dividend_dates(limit=20)}
+
+
+@app.get("/api/dividend/history", response_model=DividendSnapshotResponse)
+def dividend_history(date: str):
+    snap = get_dividend_snapshot(date)
+    if not snap:
+        return JSONResponse({"detail": f"未找到 {date} 的红利低波快照"}, status_code=404)
+    return snap
 
 
 @app.post("/api/auth/login", response_model=TokenResponse)

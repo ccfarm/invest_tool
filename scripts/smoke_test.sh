@@ -36,4 +36,10 @@ curl -sf http://127.0.0.1:80/api/trend/latest | grep -q '"items"'
 echo "==> GET /trend SPA 回退"
 curl -sf http://127.0.0.1:80/trend | grep -q '<title>股东查询'
 
+echo "==> GET /api/dividend/latest"
+curl -sf http://127.0.0.1:80/api/dividend/latest | grep -q '"items"'
+
+echo "==> GET /dividend 页面"
+curl -sf http://127.0.0.1:80/dividend | grep -q '<title>红利低波'
+
 echo "==> 冒烟测试全部通过"

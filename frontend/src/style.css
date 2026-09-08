@@ -519,6 +519,10 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
+.dividend-intro .history-label {
+  flex: 0 0 auto;
+}
+
 .sector-ratio {
   color: var(--primary);
   font-variant-numeric: tabular-nums;

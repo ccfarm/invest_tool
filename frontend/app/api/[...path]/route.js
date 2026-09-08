@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
-import { dates, login, logout, microcap, oversold, pv, search, sectors, trend, usernameFor } from '@/lib/db'
+import { dates, dividend, login, logout, microcap, oversold, pv, search, sectors, trend, usernameFor } from '@/lib/db'
 
 export const runtime = 'nodejs'; export const dynamic = 'force-dynamic'
 const json=(body,status=200)=>NextResponse.json(body,{status})
@@ -20,6 +20,9 @@ export async function GET(req,{params}){const p=(await params).path.join('/'),u=
   if(p==='trend/kline')return json(await crawler('kline',[u.searchParams.get('code')||'']))
   if(p==='sectors/latest')return json(await sectors())
   if(p==='oversold/latest')return json(await oversold())
+  if(p==='dividend/latest')return json(await dividend())
+  if(p==='dividend/dates')return json(await dates('dividend_snapshots'))
+  if(p==='dividend/history'){const value=await dividend(u.searchParams.get('date'));return value.trade_date?json(value):json({detail:'未找到快照'},404)}
   if(p==='auth/me'){const username=await usernameFor(bearer(req));return username?json({username}):json({detail:'登录已过期，请重新登录'},401)}
   return json({detail:'Not found'},404)
 }catch(e){return json({detail:e.message},500)}}
@@ -31,5 +34,6 @@ export async function POST(req,{params}){const p=(await params).path.join('/');t
   if(p==='trend/refresh')return json(await crawler('trend'))
   if(p==='sectors/refresh')return json(await crawler('sector'))
   if(p==='oversold/refresh')return json(await crawler('oversold'))
+  if(p==='dividend/refresh')return json(await crawler('dividend'))
   return json({detail:'Not found'},404)
 }catch(e){return json({detail:e.message},500)}}
