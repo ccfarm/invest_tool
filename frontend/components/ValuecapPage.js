@@ -35,11 +35,11 @@ export default function ValuecapPage() {
     </section>
     <p className="microcap-note">评分由低价25分、小盘25分、面值安全20分、流动性15分、估值质量15分组成，仅作量化筛选参考。</p>
     {error ? <p className="error">{error}</p> : loading ? <p className="loading">加载中…</p> : snapshot.items.length ? <>
-      <div className="results-summary"><span><strong>{snapshot.trade_date}</strong> 综合得分 Top 10</span><span>无法完成公告风险核验的股票不会入选</span></div>
+      <div className="results-summary"><span><strong>{snapshot.trade_date}</strong> 综合得分 Top 10</span><span>公告风险命中即剔除；核验状态单独标示</span></div>
       <div className="table-wrap"><table><thead><tr>
-        <th>排名</th><th>代码</th><th>名称</th><th>得分</th><th>现价</th><th>涨跌幅</th><th>总市值</th><th>成交额</th><th>市盈率</th><th>市净率</th>
+        <th>排名</th><th>代码</th><th>名称</th><th>得分</th><th>现价</th><th>涨跌幅</th><th>总市值</th><th>成交额</th><th>市盈率</th><th>市净率</th><th>公告核验</th>
       </tr></thead><tbody>{snapshot.items.map(item => <tr key={item.code}>
-        <td>{item.rank}</td><td><a className="code-link" href={`https://quote.eastmoney.com/${item.code.startsWith('6') ? 'sh' : 'sz'}${item.code}.html`} target="_blank" rel="noopener noreferrer">{item.code}</a></td><td>{item.name}</td><td><strong className="score-pill" title={`低价 ${item.score_parts.low_price} · 小盘 ${item.score_parts.small_cap} · 面值安全 ${item.score_parts.price_safety} · 流动性 ${item.score_parts.liquidity} · 估值质量 ${item.score_parts.valuation_quality}`}>{show(item.score)}</strong></td><td>{show(item.price)}</td><td><span className={marketClass(item.change_pct)}>{item.change_pct > 0 ? '+' : ''}{show(item.change_pct)}%</span></td><td>{show(item.mktcap_yi)}亿</td><td>{show(item.amount_wan)}万</td><td>{show(item.pe)}</td><td>{show(item.pb)}</td>
+        <td>{item.rank}</td><td><a className="code-link" href={`https://quote.eastmoney.com/${item.code.startsWith('6') ? 'sh' : 'sz'}${item.code}.html`} target="_blank" rel="noopener noreferrer">{item.code}</a></td><td>{item.name}</td><td><strong className="score-pill" title={`低价 ${item.score_parts.low_price} · 小盘 ${item.score_parts.small_cap} · 面值安全 ${item.score_parts.price_safety} · 流动性 ${item.score_parts.liquidity} · 估值质量 ${item.score_parts.valuation_quality}`}>{show(item.score)}</strong></td><td>{show(item.price)}</td><td><span className={marketClass(item.change_pct)}>{item.change_pct > 0 ? '+' : ''}{show(item.change_pct)}%</span></td><td>{show(item.mktcap_yi)}亿</td><td>{show(item.amount_wan)}万</td><td>{show(item.pe)}</td><td>{show(item.pb)}</td><td>{item.risk_checked ? '已核验' : '待核验'}</td>
       </tr>)}</tbody></table></div>
     </> : <section className="empty-state"><div className="empty-icon">🛡️</div><p>今日榜单正在生成，请稍后刷新。</p></section>}
   </>

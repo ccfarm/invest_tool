@@ -268,6 +268,7 @@ class ValuecapItem(BaseModel):
     change_pct: float | None = None
     pe: float | None = None
     pb: float | None = None
+    risk_checked: bool = False
     score_parts: dict[str, float]
 
 

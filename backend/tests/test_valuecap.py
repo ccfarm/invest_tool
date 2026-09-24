@@ -51,6 +51,16 @@ def test_build_ranking_skips_announcement_risk_and_orders(monkeypatch):
     result = valuecap.build_ranking(stocks)
     assert [item["code"] for item in result] == ["000002"]
     assert result[0]["rank"] == 1
+    assert result[0]["risk_checked"] is True
+
+
+@pytest.mark.no_db
+def test_build_ranking_keeps_candidate_when_risk_service_unavailable(monkeypatch):
+    monkeypatch.setattr(
+        valuecap, "check_announcement_risk", lambda code: (_ for _ in ()).throw(OSError())
+    )
+    result = valuecap.build_ranking([_stock()])
+    assert result[0]["risk_checked"] is False
 
 
 @pytest.mark.no_db

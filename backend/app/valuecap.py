@@ -10,7 +10,7 @@ from .db import (
     get_valuecap_snapshot,
     save_valuecap_snapshot,
 )
-from .microcap import CLIST_URL, _get, check_announcement_risk, get_last_trade_date
+from .microcap import _get, check_announcement_risk, get_last_trade_date
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,10 @@ MAX_CAP = 10_000_000_000.0
 MIN_AMOUNT = 30_000_000.0
 TOP_N = 10
 RISK_POOL = 60
+SINA_MARKET_URL = (
+    "https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/"
+    "Market_Center.getHQNodeData"
+)
 
 
 def _number(value) -> float | None:
@@ -33,40 +37,36 @@ def _number(value) -> float | None:
 
 
 def fetch_market_candidates() -> list[dict]:
-    """获取沪深 A 股行情指标；北交所暂不纳入榜单。"""
+    """从新浪行情获取沪深 A 股指标；北交所暂不纳入榜单。"""
     rows: list[dict] = []
     page = 1
     while True:
         params = {
-            "pn": page,
-            "pz": 200,
-            "po": 0,
-            "np": 1,
-            "ut": "bd1d9ddb04089700cf9c27f6f7426281",
-            "fltt": 2,
-            "invt": 2,
-            "fid": "f20",
-            "fs": "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23",
-            "fields": "f2,f3,f6,f9,f12,f14,f20,f23",
+            "page": page,
+            "num": 100,
+            "sort": "mktcap",
+            "asc": 1,
+            "node": "hs_a",
+            "symbol": "",
+            "_s_r_a": "page",
         }
-        data = json.loads(_get(f"{CLIST_URL}?{urllib.parse.urlencode(params)}")) or {}
-        payload = data.get("data") or {}
-        diff = payload.get("diff") or []
-        for item in diff:
+        batch = json.loads(_get(f"{SINA_MARKET_URL}?{urllib.parse.urlencode(params)}")) or []
+        for item in batch:
+            # 新浪市值单位为万元，成交额单位为元。
+            mktcap_wan = _number(item.get("mktcap"))
             rows.append(
                 {
-                    "code": str(item.get("f12") or ""),
-                    "name": str(item.get("f14") or ""),
-                    "price": _number(item.get("f2")),
-                    "change_pct": _number(item.get("f3")),
-                    "amount": _number(item.get("f6")),
-                    "pe": _number(item.get("f9")),
-                    "mktcap": _number(item.get("f20")),
-                    "pb": _number(item.get("f23")),
+                    "code": str(item.get("code") or ""),
+                    "name": str(item.get("name") or ""),
+                    "price": _number(item.get("trade")),
+                    "change_pct": _number(item.get("changepercent")),
+                    "amount": _number(item.get("amount")),
+                    "pe": _number(item.get("per")),
+                    "mktcap": mktcap_wan * 10_000 if mktcap_wan is not None else None,
+                    "pb": _number(item.get("pb")),
                 }
             )
-        total = int(payload.get("total") or 0)
-        if not diff or page * 200 >= total:
+        if len(batch) < 100:
             break
         page += 1
     return rows
@@ -74,6 +74,8 @@ def fetch_market_candidates() -> list[dict]:
 
 def exclusion_reason(stock: dict) -> str | None:
     name = stock["name"].upper()
+    if not stock["code"].startswith(("0", "3", "6")):
+        return "暂不含北交所"
     if "ST" in name or "退" in name or "PT" in name:
         return "风险警示股票"
     price, cap, amount = stock["price"], stock["mktcap"], stock["amount"]
@@ -121,11 +123,13 @@ def build_ranking(stocks: list[dict], top_n: int = TOP_N) -> list[dict]:
 
     winners = []
     for stock in candidates[:RISK_POOL]:
+        risk_checked = True
         try:
             risk = check_announcement_risk(stock["code"])
         except (OSError, ValueError, KeyError):
             logger.warning("低价稳健榜公告排查失败：%s", stock["code"])
-            continue  # 无法完成风险核验时宁可不入选
+            risk = None
+            risk_checked = False
         if risk:
             continue
         winners.append(
@@ -140,6 +144,7 @@ def build_ranking(stocks: list[dict], top_n: int = TOP_N) -> list[dict]:
                 "change_pct": stock["change_pct"],
                 "pe": stock["pe"],
                 "pb": stock["pb"],
+                "risk_checked": risk_checked,
                 "score_parts": stock["score_parts"],
             }
         )
