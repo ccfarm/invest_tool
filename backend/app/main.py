@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .auth import verify_password
 from .config import (
@@ -20,6 +20,7 @@ from .config import (
     SCHEDULE_INTERVAL,
     TOKEN_TTL_SECONDS,
     TREND_INTERVAL,
+    VALUECAP_INTERVAL,
 )
 from .crawler import crawl_market
 from .db import (
@@ -31,10 +32,12 @@ from .db import (
     get_password_hash,
     get_pv,
     get_trend_snapshot,
+    get_valuecap_snapshot,
     init_auth_user,
     list_dividend_dates,
     list_microcap_dates,
     list_trend_dates,
+    list_valuecap_dates,
     record_pv,
     search,
 )
@@ -47,6 +50,7 @@ from .trend import (
     refresh_trend,
     scheduled_trend,
 )
+from .valuecap import latest_valuecap, refresh_valuecap, scheduled_valuecap
 
 FRONTEND_DIST = BASE_DIR.parent / "frontend" / "dist"
 logger = logging.getLogger(__name__)
@@ -126,6 +130,19 @@ def _run_scheduled_trend(stop_event: threading.Event, startup_delay: float = 45.
         stop_event.wait(TREND_INTERVAL)
 
 
+def _run_scheduled_valuecap(stop_event: threading.Event, startup_delay: float = 40.0) -> None:
+    logger.info("低价稳健榜定时任务已启动：%.0f 秒后首次执行", startup_delay)
+    while not stop_event.is_set():
+        if stop_event.wait(startup_delay):
+            return
+        startup_delay = 0.0
+        try:
+            scheduled_valuecap()
+        except Exception:
+            logger.exception("低价稳健榜生成失败，等待下一轮重试")
+        stop_event.wait(VALUECAP_INTERVAL)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -161,6 +178,16 @@ async def lifespan(_: FastAPI):
         thread.start()
     else:
         logger.info("趋势向上定时任务已禁用（ENABLE_SCHEDULED_TREND=0）")
+    if os.getenv("ENABLE_SCHEDULED_VALUECAP", "1") == "1":
+        thread = threading.Thread(
+            target=_run_scheduled_valuecap,
+            args=(stop_event, 40.0),
+            daemon=True,
+            name="valuecap-scheduler",
+        )
+        thread.start()
+    else:
+        logger.info("低价稳健榜定时任务已禁用（ENABLE_SCHEDULED_VALUECAP=0）")
     yield
     stop_event.set()
 
@@ -208,9 +235,13 @@ class PvResponse(BaseModel):
 
 class MicrocapItem(BaseModel):
     rank: int
+    board: str | None = None
     code: str
     name: str
     mktcap_yi: float
+    month_change_pct: float | None = None
+    ths_concept_count: int | None = None
+    ths_concepts: list[str] = Field(default_factory=list)
 
 
 class MicrocapRefreshResponse(BaseModel):
@@ -224,6 +255,26 @@ class MicrocapSnapshotResponse(BaseModel):
     trade_date: str | None
     created_at: str | None
     items: list[MicrocapItem]
+
+
+class ValuecapItem(BaseModel):
+    rank: int
+    code: str
+    name: str
+    score: float
+    price: float
+    mktcap_yi: float
+    amount_wan: float
+    change_pct: float | None = None
+    pe: float | None = None
+    pb: float | None = None
+    score_parts: dict[str, float]
+
+
+class ValuecapSnapshotResponse(BaseModel):
+    trade_date: str | None
+    created_at: str | None = None
+    items: list[ValuecapItem]
 
 
 class TrendItem(BaseModel):
@@ -360,6 +411,29 @@ def trend_latest():
     snap = latest_trend()
     if not snap:
         return {"trade_date": None, "created_at": None, "items": []}
+    return snap
+
+
+@app.post("/api/valuecap/refresh")
+def valuecap_refresh(force: bool = False):
+    return refresh_valuecap(force=force)
+
+
+@app.get("/api/valuecap/latest", response_model=ValuecapSnapshotResponse)
+def valuecap_latest():
+    return latest_valuecap() or {"trade_date": None, "created_at": None, "items": []}
+
+
+@app.get("/api/valuecap/dates")
+def valuecap_dates():
+    return {"dates": list_valuecap_dates(limit=20)}
+
+
+@app.get("/api/valuecap/history", response_model=ValuecapSnapshotResponse)
+def valuecap_history(date: str):
+    snap = get_valuecap_snapshot(date)
+    if not snap:
+        return JSONResponse({"detail": f"未找到 {date} 的低价稳健榜快照"}, status_code=404)
     return snap
 
 

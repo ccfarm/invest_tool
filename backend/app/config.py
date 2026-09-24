@@ -38,6 +38,9 @@ TOKEN_TTL_SECONDS = int(os.getenv("TOKEN_TTL_SECONDS", str(7 * 24 * 3600)))
 # 微盘股自动拉取间隔（秒），默认 6 小时
 MICROCAP_INTERVAL = int(os.getenv("MICROCAP_INTERVAL", "21600"))
 
+# 低价小盘稳健榜每日快照检查间隔（同交易日默认复用）
+VALUECAP_INTERVAL = int(os.getenv("VALUECAP_INTERVAL", "21600"))
+
 # 微盘股每个板块的入选数量
 MICROCAP_TOP_N_PER_BOARD = int(os.getenv("MICROCAP_TOP_N_PER_BOARD", "10"))
 

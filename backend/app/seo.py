@@ -232,6 +232,8 @@ def _microcap_snapshot(query_params: dict[str, list[str]]) -> HTMLResponse:
             f"<td>{html.escape(item['code'])}</td>"
             f"<td>{html.escape(item['name'])}</td>"
             f"<td>{item['mktcap_yi']:,.2f} 亿</td>"
+            f"<td>{_num(item.get('month_change_pct'))}%</td>"
+            f"<td>{html.escape('、'.join(item.get('ths_concepts') or [])) or '—'}</td>"
             "</tr>"
             for item in snap["items"]
         )
@@ -239,7 +241,7 @@ def _microcap_snapshot(query_params: dict[str, list[str]]) -> HTMLResponse:
       <h1>微盘股筛选 - 四大板块各 10 只</h1>
       <p>{snap['trade_date']} 入选的微盘股（科创板、创业板、中小板、主板各取最低市值 10 只）。</p>
       <table>
-        <thead><tr><th>排名</th><th>代码</th><th>名称</th><th>总市值</th></tr></thead>
+        <thead><tr><th>排名</th><th>代码</th><th>名称</th><th>总市值</th><th>近一个月</th><th>同花顺概念</th></tr></thead>
         <tbody>{rows}</tbody>
       </table>"""
     return _page(MICROCAP_TITLE, MICROCAP_DESCRIPTION, canonical, body)

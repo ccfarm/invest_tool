@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import pytest
+
 from app import microcap
 from app.db import get_blacklisted_codes, get_microcap_snapshot, save_microcap_snapshot
 
@@ -34,6 +36,12 @@ def test_screen_microcap(monkeypatch):
         stocks.append(_stock(f"000{100 + i:03d}", f"普通股{i}", 1000 + i * 100))
     monkeypatch.setattr(microcap, "fetch_market_stocks_with_cap", lambda: stocks)
     monkeypatch.setattr(microcap, "check_announcement_risk", lambda code: "连续亏损" if code == "000003" else None)
+    monkeypatch.setattr(
+        microcap,
+        "fetch_daily_closes",
+        lambda code, **kw: {f"2026-07-{10 + i:02d}": 10 + i for i in range(21)},
+    )
+    monkeypatch.setattr(microcap, "fetch_ths_concepts", lambda code: ["机器人", "专精特新"])
 
     result = microcap.screen_microcap(pool_size=100, top_n=20)
 
@@ -44,11 +52,43 @@ def test_screen_microcap(monkeypatch):
     blacklist = get_blacklisted_codes()
     assert "000002" in blacklist and "000003" in blacklist
     assert len(result["blacklisted"]) == 2
+    assert result["items"][0]["month_change_pct"] == 200.0
+    assert result["items"][0]["ths_concept_count"] == 2
+    assert result["items"][0]["ths_concepts"] == ["机器人", "专精特新"]
+
+
+@pytest.mark.no_db
+def test_fetch_ths_concepts_parses_regular_and_other(monkeypatch):
+    page = """
+    <td class="gnName" clid="1"> 机器人 </td>
+    <td class="gnStockList" tag="其他概念-AI手机">AI手机</td>
+    <td class="gnName">机器人</td>
+    """
+    monkeypatch.setattr(microcap, "_get_ths_concept_page", lambda code: page)
+
+    assert microcap.fetch_ths_concepts("000001") == ["机器人", "AI手机"]
+
+
+@pytest.mark.no_db
+def test_calculate_month_change_uses_20_trading_days():
+    closes = {f"2026-08-{i:02d}": float(i) for i in range(1, 22)}
+
+    assert microcap.calculate_month_change(closes, "2026-08-21") == 2000.0
+    assert microcap.calculate_month_change(dict(list(closes.items())[:20]), "2026-08-20") is None
 
 
 def test_refresh_reuses_same_date(monkeypatch):
     monkeypatch.setattr(microcap, "fetch_kline", lambda **kw: _bars("2026-08-05", "2026-08-06", "2026-08-07"))
     save_microcap_snapshot("2026-08-07", [{"rank": 1, "code": "000001", "name": "旧快照", "mktcap_yi": 1.0}])
+
+    def enrich(items, trade_date):
+        items[0].update({
+            "month_change_pct": 3.5,
+            "ths_concept_count": 1,
+            "ths_concepts": ["银行"],
+        })
+
+    monkeypatch.setattr(microcap, "enrich_microcap_items", enrich)
 
     def should_not_screen(*a, **kw):
         raise AssertionError("同交易日不应重新筛选")
@@ -57,6 +97,7 @@ def test_refresh_reuses_same_date(monkeypatch):
     result = microcap.refresh_microcap()
     assert result["reused"] is True
     assert result["items"][0]["name"] == "旧快照"
+    assert result["items"][0]["month_change_pct"] == 3.5
 
 
 def test_snapshot_save_and_query():
@@ -89,13 +130,23 @@ def test_backfill_fills_missing_days(monkeypatch):
         return {d: 1.0 for d in days}  # 历史收盘价统一 1 元
 
     monkeypatch.setattr(microcap, "fetch_daily_closes", fake_closes)
+    monkeypatch.setattr(microcap, "fetch_ths_concepts", lambda code: ["概念A"])
 
     result = microcap.backfill_microcap(days=10)
 
     assert len(result["filled"]) == 9
     assert "2026-08-07" not in result["filled"]
     items = get_microcap_snapshot("2026-07-28")["items"]
-    assert items == [{"rank": 1, "board": "创业板", "code": "300000", "name": "候选A", "mktcap_yi": 10.0}]
+    assert items == [{
+        "rank": 1,
+        "board": "创业板",
+        "code": "300000",
+        "name": "候选A",
+        "mktcap_yi": 10.0,
+        "month_change_pct": None,
+        "ths_concepts": ["概念A"],
+        "ths_concept_count": 1,
+    }]
     # 历史市值 = 当日收盘 1 元 × 总股本 10 亿股 = 10 亿元
     assert items[0]["mktcap_yi"] == 10.0
 

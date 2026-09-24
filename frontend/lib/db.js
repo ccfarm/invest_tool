@@ -16,4 +16,5 @@ export const microcap=d=>snapshot('microcap_snapshots',d);export const trend=d=>
 export const sectors=()=>snapshot('sector_snapshots')
 export const oversold=()=>snapshot('oversold_snapshots')
 export const dividend=d=>snapshot('dividend_snapshots',d)
+export const valuecap=d=>snapshot('valuecap_snapshots',d)
 export async function dates(table){const{rows}=await pool.query(`SELECT trade_date,created_at FROM ${table} ORDER BY trade_date DESC LIMIT 20`);return{dates:rows}}

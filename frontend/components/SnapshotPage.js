@@ -12,6 +12,25 @@ function boardForCode(code = '') {
   return '主板'
 }
 
+function changeClass(value) {
+  if (value > 0) return 'up'
+  if (value < 0) return 'down'
+  return 'flat'
+}
+
+function ConceptCount({ item }) {
+  if (item.ths_concept_count == null) return '—'
+  const tooltipId = `concepts-${item.code}`
+  const conceptText = item.ths_concepts?.length ? item.ths_concepts.join('、') : '暂无概念'
+  return <span className="concept-count" tabIndex="0" aria-describedby={tooltipId} title={conceptText}>
+    {item.ths_concept_count}
+    <span className="concept-tooltip" id={tooltipId} role="tooltip">
+      <strong>同花顺概念</strong>
+      <span>{conceptText}</span>
+    </span>
+  </span>
+}
+
 export default function SnapshotPage({ kind }) {
   const isTrend = kind === 'trend'
   const [dates, setDates] = useState([])
@@ -88,10 +107,14 @@ export default function SnapshotPage({ kind }) {
       </div>
       <div className="table-wrap"><table><thead><tr>
         <th>排名</th><th>代码</th><th>名称</th>
-        {isTrend ? <><th>现价</th><th>换手率</th><th>MA20</th></> : <th>总市值</th>}
+        {isTrend ? <><th>现价</th><th>换手率</th><th>MA20</th></> : <><th>总市值</th><th>近一个月</th><th>同花顺概念</th></>}
       </tr></thead><tbody>{visibleItems.map(item => <tr key={item.code}>
         <td>{item.rank}</td><td>{item.code}</td><td>{item.name}</td>
-        {isTrend ? <><td>{item.price ?? '—'}</td><td>{item.turnover == null ? '—' : `${item.turnover}%`}</td><td>{item.ma20 ?? '—'}</td></> : <td>{item.mktcap_yi == null ? '—' : `${item.mktcap_yi} 亿`}</td>}
+        {isTrend ? <><td>{item.price ?? '—'}</td><td>{item.turnover == null ? '—' : `${item.turnover}%`}</td><td>{item.ma20 ?? '—'}</td></> : <>
+          <td>{item.mktcap_yi == null ? '—' : `${item.mktcap_yi} 亿`}</td>
+          <td>{item.month_change_pct == null ? '—' : <span className={`change-value ${changeClass(item.month_change_pct)}`}>{item.month_change_pct > 0 ? '+' : ''}{item.month_change_pct}%</span>}</td>
+          <td><ConceptCount item={item} /></td>
+        </>}
       </tr>)}</tbody></table></div>
     </> : <section className="empty-state"><div className="empty-icon">📉</div><p>该板块暂无数据。</p></section>}
   </>

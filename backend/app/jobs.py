@@ -10,21 +10,24 @@ from .microcap import refresh_microcap, scheduled_microcap
 from .oversold import refresh_oversold, scheduled_oversold
 from .sector import refresh_sectors, scheduled_sectors
 from .trend import fetch_trend_kline, refresh_trend, scheduled_trend
+from .valuecap import refresh_valuecap, scheduled_valuecap
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="投资工具箱 Python 采集任务")
-    parser.add_argument("job", choices=["market", "microcap", "trend", "sector", "oversold", "dividend", "scheduled-microcap", "scheduled-trend", "scheduled-sector", "scheduled-oversold", "scheduled-dividend", "kline"])
+    parser.add_argument("job", choices=["market", "microcap", "valuecap", "trend", "sector", "oversold", "dividend", "scheduled-microcap", "scheduled-valuecap", "scheduled-trend", "scheduled-sector", "scheduled-oversold", "scheduled-dividend", "kline"])
     parser.add_argument("value", nargs="?")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
     if args.job == "market": result = crawl_market(force=args.force) or {"ok": True}
     elif args.job == "microcap": result = refresh_microcap(force=args.force)
+    elif args.job == "valuecap": result = refresh_valuecap(force=args.force)
     elif args.job == "trend": result = refresh_trend(force=args.force)
     elif args.job == "sector": result = refresh_sectors(force=args.force)
     elif args.job == "oversold": result = refresh_oversold(force=args.force)
     elif args.job == "dividend": result = refresh_dividend(force=args.force)
     elif args.job == "scheduled-microcap": result = scheduled_microcap()
+    elif args.job == "scheduled-valuecap": result = scheduled_valuecap()
     elif args.job == "scheduled-trend": result = scheduled_trend()
     elif args.job == "scheduled-sector": result = scheduled_sectors()
     elif args.job == "scheduled-oversold": result = scheduled_oversold()

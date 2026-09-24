@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
-import { dates, dividend, login, logout, microcap, oversold, pv, search, sectors, trend, usernameFor } from '@/lib/db'
+import { dates, dividend, login, logout, microcap, oversold, pv, search, sectors, trend, usernameFor, valuecap } from '@/lib/db'
 
 export const runtime = 'nodejs'; export const dynamic = 'force-dynamic'
 const json=(body,status=200)=>NextResponse.json(body,{status})
@@ -14,6 +14,9 @@ export async function GET(req,{params}){const p=(await params).path.join('/'),u=
   if(p==='microcap/latest')return json(await microcap())
   if(p==='microcap/dates')return json(await dates('microcap_snapshots'))
   if(p==='microcap/history'){const value=await microcap(u.searchParams.get('date'));return value.trade_date?json(value):json({detail:'未找到快照'},404)}
+  if(p==='valuecap/latest')return json(await valuecap())
+  if(p==='valuecap/dates')return json(await dates('valuecap_snapshots'))
+  if(p==='valuecap/history'){const value=await valuecap(u.searchParams.get('date'));return value.trade_date?json(value):json({detail:'未找到快照'},404)}
   if(p==='trend/latest')return json(await trend())
   if(p==='trend/dates')return json(await dates('trend_snapshots'))
   if(p==='trend/history'){const value=await trend(u.searchParams.get('date'));return value.trade_date?json(value):json({detail:'未找到快照'},404)}
@@ -31,6 +34,7 @@ export async function POST(req,{params}){const p=(await params).path.join('/');t
   if(p==='auth/login'){const body=await req.json();const result=await login(body.username||'',body.password||'');return result?json(result):json({detail:'用户名或密码错误'},401)}
   if(p==='auth/logout'){const token=bearer(req);if(!await usernameFor(token))return json({detail:'未登录'},401);await logout(token);return json({ok:true})}
   if(p==='microcap/refresh')return json(await crawler('microcap'))
+  if(p==='valuecap/refresh')return json(await crawler('valuecap'))
   if(p==='trend/refresh')return json(await crawler('trend'))
   if(p==='sectors/refresh')return json(await crawler('sector'))
   if(p==='oversold/refresh')return json(await crawler('oversold'))

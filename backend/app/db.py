@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS trend_snapshots(id BIGSERIAL PRIMARY KEY,trade_date T
 CREATE TABLE IF NOT EXISTS sector_snapshots(id BIGSERIAL PRIMARY KEY,trade_date TEXT UNIQUE,created_at TEXT,items TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS oversold_snapshots(id BIGSERIAL PRIMARY KEY,trade_date TEXT UNIQUE,created_at TEXT,items TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS dividend_snapshots(id BIGSERIAL PRIMARY KEY,trade_date TEXT UNIQUE,created_at TEXT,items TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS valuecap_snapshots(id BIGSERIAL PRIMARY KEY,trade_date TEXT UNIQUE,created_at TEXT,items TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS users(id BIGSERIAL PRIMARY KEY,username TEXT NOT NULL UNIQUE,password_hash TEXT NOT NULL,created_at TEXT);
 CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY,username TEXT NOT NULL,created_at TEXT,expires_at TEXT);
 """
@@ -166,6 +167,10 @@ def save_dividend_snapshot(trade_date: str, items: list[dict]) -> None: _save_sn
 def get_dividend_snapshot(trade_date: str) -> dict | None: return _get_snapshot("dividend_snapshots",trade_date)
 def get_latest_dividend_snapshot() -> dict | None: return _get_snapshot("dividend_snapshots")
 def list_dividend_dates(limit: int = 20) -> list[dict]: return _list_dates("dividend_snapshots",limit)
+def save_valuecap_snapshot(trade_date: str, items: list[dict]) -> None: _save_snapshot("valuecap_snapshots",trade_date,items)
+def get_valuecap_snapshot(trade_date: str) -> dict | None: return _get_snapshot("valuecap_snapshots",trade_date)
+def get_latest_valuecap_snapshot() -> dict | None: return _get_snapshot("valuecap_snapshots")
+def list_valuecap_dates(limit: int = 20) -> list[dict]: return _list_dates("valuecap_snapshots",limit)
 
 
 def init_auth_user(username: str, password: str) -> None:

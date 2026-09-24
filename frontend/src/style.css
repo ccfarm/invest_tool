@@ -483,6 +483,83 @@ tbody tr:hover {
   color: var(--primary-foreground);
 }
 
+.change-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.change-value.up {
+  color: var(--state-error);
+}
+
+.change-value.down {
+  color: var(--state-success);
+}
+
+.change-value.flat {
+  color: var(--muted-foreground);
+}
+
+.score-pill {
+  display: inline-block;
+  min-width: 54px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+  cursor: help;
+}
+
+.concept-count {
+  position: relative;
+  display: inline-flex;
+  min-width: 30px;
+  justify-content: center;
+  padding: 2px 9px;
+  border: 1px dashed var(--primary);
+  border-radius: 999px;
+  color: var(--primary);
+  cursor: help;
+  outline: none;
+}
+
+.concept-count:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 25%, transparent);
+}
+
+.concept-tooltip {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  display: none;
+  width: min(360px, 75vw);
+  padding: 12px 14px;
+  transform: translateX(-50%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--foreground);
+  color: var(--background);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  line-height: 1.6;
+  white-space: normal;
+  text-align: left;
+}
+
+.concept-tooltip strong,
+.concept-tooltip span {
+  display: block;
+}
+
+.concept-tooltip strong {
+  margin-bottom: 4px;
+}
+
+.concept-count:hover .concept-tooltip,
+.concept-count:focus .concept-tooltip {
+  display: block;
+}
+
 /* 趋势向上页 */
 .code-link {
   color: var(--primary);

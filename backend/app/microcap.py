@@ -49,6 +49,8 @@
 
 6. 取结果与快照
    - 剩余候选按板块分组、总市值升序，每个板块取前 10 只。
+   - 对入选股票计算截至快照日近 20 个交易日涨跌幅，并从同花顺 F10
+     获取常规概念和其他概念列表。
    - 快照按 trade_date 唯一写入 microcap_snapshots；
      同一天再次触发时直接复用已有快照，不重复计算（refresh_microcap 检查）。
 
@@ -68,6 +70,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, time
+from html.parser import HTMLParser
 from zoneinfo import ZoneInfo
 
 from .config import (
@@ -89,7 +92,9 @@ logger = logging.getLogger(__name__)
 KLINE_URL = "https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketDataService.getKLineData"
 CLIST_URL = "https://push2delay.eastmoney.com/api/qt/clist/get"
 ANNOUNCE_URL = "https://np-anotice-stock.eastmoney.com/api/security/ann"
+THS_CONCEPT_URL = "https://basic.10jqka.com.cn/{code}/concept.html"
 CLOSE_HOUR = 15  # A 股收盘时间（Asia/Shanghai）
+MONTH_TRADING_DAYS = 20
 
 # 公告标题风险关键词（见模块头设计说明）
 RISK_KEYWORDS = (
@@ -209,6 +214,93 @@ def fetch_daily_closes(code: str, datalen: int = 20) -> dict[str, float]:
     return {b["day"]: float(b["close"]) for b in bars}
 
 
+def calculate_month_change(
+    closes: dict[str, float],
+    trade_date: str,
+) -> float | None:
+    """截至 trade_date 的近 20 个交易日涨跌幅；数据不足时返回 None。"""
+    ordered = sorted((day, close) for day, close in closes.items() if day <= trade_date)
+    if len(ordered) <= MONTH_TRADING_DAYS:
+        return None
+    latest = ordered[-1][1]
+    baseline = ordered[-(MONTH_TRADING_DAYS + 1)][1]
+    if baseline == 0:
+        return None
+    return round((latest / baseline - 1) * 100, 2)
+
+
+class _ThsConceptParser(HTMLParser):
+    """提取同花顺 F10 页面中的常规概念与其他概念名称。"""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._capturing = False
+        self._parts: list[str] = []
+        self.concepts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "td":
+            return
+        classes = dict(attrs).get("class", "") or ""
+        if {"gnName", "gnStockList"}.intersection(classes.split()):
+            self._capturing = True
+            self._parts = []
+
+    def handle_data(self, data: str) -> None:
+        if self._capturing:
+            self._parts.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag != "td" or not self._capturing:
+            return
+        name = " ".join("".join(self._parts).split())
+        if name and name not in self.concepts:
+            self.concepts.append(name)
+        self._capturing = False
+        self._parts = []
+
+
+def _get_ths_concept_page(code: str, timeout: int = 30) -> str:
+    """读取同花顺 F10 概念页（页面编码为 GB18030）。"""
+    req = urllib.request.Request(
+        THS_CONCEPT_URL.format(code=code),
+        headers={
+            "User-Agent": USER_AGENT,
+            "Referer": f"https://basic.10jqka.com.cn/{code}/",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.read().decode("gb18030", errors="ignore")
+
+
+def fetch_ths_concepts(code: str) -> list[str]:
+    """获取股票的同花顺概念列表（常规概念 + 其他概念）。"""
+    parser = _ThsConceptParser()
+    parser.feed(_get_ths_concept_page(code))
+    return parser.concepts
+
+
+def enrich_microcap_items(items: list[dict], trade_date: str) -> list[dict]:
+    """为已入选股票补充月涨跌幅及同花顺概念；单股失败不影响整个快照。"""
+    for item in items:
+        try:
+            closes = fetch_daily_closes(item["code"], datalen=MONTH_TRADING_DAYS + 5)
+            item["month_change_pct"] = calculate_month_change(closes, trade_date)
+        except (OSError, ValueError, KeyError):
+            logger.warning("月涨跌幅拉取失败：%s", item["code"])
+            item["month_change_pct"] = None
+
+        try:
+            concepts = fetch_ths_concepts(item["code"])
+            item["ths_concepts"] = concepts
+            item["ths_concept_count"] = len(concepts)
+        except (OSError, ValueError):
+            logger.warning("同花顺概念拉取失败：%s", item["code"])
+            item["ths_concepts"] = []
+            item["ths_concept_count"] = None
+    return items
+
+
 def check_announcement_risk(code: str) -> str | None:
     """拉取最近公告标题，命中风险关键词则返回关键词，否则 None。"""
     params = {
@@ -251,8 +343,9 @@ def screen_microcap(
     top_n: int = MICROCAP_TOP_N_PER_BOARD,
 ) -> dict:
     """执行筛选（步骤 2~6），返回 {trade_date, items, blacklisted}。"""
-    items, newly_blacklisted = _screen_items(pool_size, top_n)
     trade_date = get_last_trade_date()
+    items, newly_blacklisted = _screen_items(pool_size, top_n)
+    enrich_microcap_items(items, trade_date)
     save_microcap_snapshot(trade_date, items)
     return {
         "trade_date": trade_date,
@@ -334,7 +427,7 @@ def backfill_microcap(
     2. 逐只拉取最近日 K 收盘价；
     3. 对每个缺失交易日，用当日收盘价×总股本计算历史市值，
        排除黑名单 / ST / 退 / PT 后按板块各取最低 10 只，存入该交易日快照。
-    说明：ST 状态与股本按当前值近似；同日已存在则不覆盖。
+    说明：ST 状态、股本与同花顺概念按当前值近似；同日已存在则不覆盖。
     """
     bars = fetch_kline(datalen=days + 5)
     trade_dates = [b["day"] for b in bars][-days:]
@@ -358,11 +451,14 @@ def backfill_microcap(
     closes_by_code: dict[str, dict[str, float]] = {}
     for s in candidates:
         try:
-            closes_by_code[s["code"]] = fetch_daily_closes(s["code"])
+            closes_by_code[s["code"]] = fetch_daily_closes(
+                s["code"], datalen=days + MONTH_TRADING_DAYS + 5
+            )
         except (OSError, ValueError):
             continue
 
     filled: list[str] = []
+    concepts_by_code: dict[str, list[str] | None] = {}
     for d in missing:
         rows: list[dict] = []
         for s in candidates:
@@ -397,6 +493,22 @@ def backfill_microcap(
                 }
                 for index, row in enumerate(board_rows)
             )
+        for item in items:
+            closes = closes_by_code.get(item["code"], {})
+            item["month_change_pct"] = calculate_month_change(closes, d)
+            code = item["code"]
+            if code not in concepts_by_code:
+                try:
+                    concepts_by_code[code] = fetch_ths_concepts(code)
+                except (OSError, ValueError):
+                    concepts_by_code[code] = None
+            concepts = concepts_by_code[code]
+            if concepts is None:
+                item["ths_concepts"] = []
+                item["ths_concept_count"] = None
+            else:
+                item["ths_concepts"] = concepts
+                item["ths_concept_count"] = len(concepts)
         save_microcap_snapshot(d, items)
         filled.append(d)
     logger.info("微盘股按历史市值补齐 %d 个缺失交易日：%s", len(filled), missing)
@@ -411,14 +523,22 @@ def scheduled_microcap() -> dict:
 
 
 def refresh_microcap(force: bool = False) -> dict:
-    """触发刷新：先判定交易日；同日期已有快照则直接复用，否则重新筛选。"""
+    """触发刷新：同日快照直接复用，旧版快照先补齐新增指标，否则重新筛选。"""
     trade_date = get_last_trade_date()
     existing = get_microcap_snapshot(trade_date)
     if existing and not force:
+        items = existing["items"]
+        needs_enrichment = any(
+            "month_change_pct" not in item or "ths_concept_count" not in item
+            for item in items
+        )
+        if needs_enrichment:
+            enrich_microcap_items(items, trade_date)
+            save_microcap_snapshot(trade_date, items)
         return {
             "trade_date": trade_date,
             "reused": True,
-            "items": existing["items"],
+            "items": items,
             "blacklisted": [],
         }
     result = screen_microcap()
