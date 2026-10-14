@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
-import { dates, dividend, login, logout, microcap, oversold, pv, search, sectors, trend, usernameFor, valuecap } from '@/lib/db'
+import { leaders, dates, dividend, login, logout, microcap, oversold, pv, search, sectors, trend, usernameFor, valuecap } from '@/lib/db'
 
 export const runtime = 'nodejs'; export const dynamic = 'force-dynamic'
 const json=(body,status=200)=>NextResponse.json(body,{status})
 const bearer=req=>(req.headers.get('authorization')||'').replace(/^Bearer\s+/i,'')
 function crawler(command,args=[]){return new Promise((resolve,reject)=>{const backend=path.join(process.cwd(),'..','backend');const python=process.env.PYTHON_BIN||path.join(backend,'.venv','bin','python');const child=spawn(python,['-m','app.jobs',command,...args],{cwd:backend,env:process.env});let out='',err='';child.stdout.on('data',d=>out+=d);child.stderr.on('data',d=>err+=d);child.on('error',reject);child.on('close',code=>{if(code)reject(new Error(err||`Python exited ${code}`));else{try{resolve(JSON.parse(out))}catch(e){reject(new Error(`采集器返回无效数据: ${e.message}`))}}})})}
 export async function GET(req,{params}){const p=(await params).path.join('/'),u=new URL(req.url);try{
+  if(p==='strong/latest'||p==='newhigh/latest')return json(await leaders(p.split('/')[0]))
   if(p==='health')return json({status:'ok'})
   if(p==='search'){const q=(u.searchParams.get('q')||'').slice(0,100),page=Math.max(1,Number(u.searchParams.get('page')||1)),size=Math.min(100,Math.max(1,Number(u.searchParams.get('page_size')||20)));if(!q)return json({detail:'q 必填'},422);return json(await search(q,page,size))}
   if(p==='pv')return json(await pv())
@@ -33,6 +34,7 @@ export async function POST(req,{params}){const p=(await params).path.join('/');t
   if(p==='pv')return json(await pv(true))
   if(p==='auth/login'){const body=await req.json();const result=await login(body.username||'',body.password||'');return result?json(result):json({detail:'用户名或密码错误'},401)}
   if(p==='auth/logout'){const token=bearer(req);if(!await usernameFor(token))return json({detail:'未登录'},401);await logout(token);return json({ok:true})}
+  if(p==='strong/refresh'||p==='newhigh/refresh')return json(await crawler(p.split('/')[0],new URL(req.url).searchParams.get('force')==='true'?['--force']:[]))
   if(p==='microcap/refresh')return json(await crawler('microcap'))
   if(p==='valuecap/refresh')return json(await crawler('valuecap'))
   if(p==='trend/refresh')return json(await crawler('trend'))

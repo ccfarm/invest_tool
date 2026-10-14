@@ -128,3 +128,18 @@ docker run -p 80:80 -v invest-data:/app/backend/data invest-tools
 
 顶部导航“超跌板块”同样只统计成分股数量大于 10 的行业；计算 RSI(14)，筛选当前值
 位于自身最近 200 个交易日 RSI 序列倒数 5% 分位的行业，每日收盘后生成快照。
+
+## 最近强势与新高
+
+- `/strong`：沪深北 A 股按前复权收盘价计算近20个交易日涨幅，降序取前20只。
+- `/newhigh`：当日的前复权收盘价严格超过此前五年最高收盘价；排除上市未满
+  三年的股票，上市三至五年按上市以来历史比较。结果按月涨幅降序展示。
+- 两页展示交易板块、行业、主要概念（同花顺概念列表前三项）、题材（完整概念列表）
+  和近1个月涨幅。概念获取失败时显示“暂无数据”，不生成推测题材。
+- 月涨幅不足21根日线或当日无成交日线的股票不参与筛选；保留 ST 股票。
+- `python -m app.jobs strong` / `python -m app.jobs newhigh` 手动采集，
+  加 `--force` 重算同日快照。`GET /api/{strong,newhigh}/latest` 读取快照，
+  `POST /api/{strong,newhigh}/refresh?force=true` 强制刷新。
+- 独立调度器默认每6小时尝试刷新，交易日15:10前等待收盘；
+  `ENABLE_SCHEDULED_STRONG=0`、`ENABLE_SCHEDULED_NEWHIGH=0` 可分别禁用。
+  首次全市场扫描耗时较长；任何行情请求失败均不覆盖已有快照。

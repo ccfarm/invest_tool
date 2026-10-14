@@ -1,1 +1,1 @@
-export default function sitemap(){const base=process.env.SITE_URL||'http://www.cats789.fun';return['','/microcap','/valuecap','/trend','/dividend','/sector','/oversold'].map(path=>({url:`${base}${path}`,changeFrequency:'daily',priority:path?0.8:1}))}
+export default function sitemap(){const base=process.env.SITE_URL||'http://www.cats789.fun';return['','/microcap','/valuecap','/trend','/dividend','/sector','/oversold','/strong','/newhigh'].map(path=>({url:`${base}${path}`,changeFrequency:'daily',priority:path?0.8:1}))}

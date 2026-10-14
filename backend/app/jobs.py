@@ -6,6 +6,7 @@ import json
 
 from .crawler import crawl_market
 from .dividend import refresh_dividend, scheduled_dividend
+from .leaders import refresh_leaders, scheduled_leaders
 from .microcap import refresh_microcap, scheduled_microcap
 from .oversold import refresh_oversold, scheduled_oversold
 from .sector import refresh_sectors, scheduled_sectors
@@ -15,11 +16,13 @@ from .valuecap import refresh_valuecap, scheduled_valuecap
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="投资工具箱 Python 采集任务")
-    parser.add_argument("job", choices=["market", "microcap", "valuecap", "trend", "sector", "oversold", "dividend", "scheduled-microcap", "scheduled-valuecap", "scheduled-trend", "scheduled-sector", "scheduled-oversold", "scheduled-dividend", "kline"])
+    parser.add_argument("job", choices=["strong", "newhigh", "scheduled-strong", "scheduled-newhigh", "market", "microcap", "valuecap", "trend", "sector", "oversold", "dividend", "scheduled-microcap", "scheduled-valuecap", "scheduled-trend", "scheduled-sector", "scheduled-oversold", "scheduled-dividend", "kline"])
     parser.add_argument("value", nargs="?")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
-    if args.job == "market": result = crawl_market(force=args.force) or {"ok": True}
+    if args.job in ("strong", "newhigh"): result = refresh_leaders(args.job, args.force)
+    elif args.job in ("scheduled-strong", "scheduled-newhigh"): result = scheduled_leaders(args.job.removeprefix("scheduled-"))
+    elif args.job == "market": result = crawl_market(force=args.force) or {"ok": True}
     elif args.job == "microcap": result = refresh_microcap(force=args.force)
     elif args.job == "valuecap": result = refresh_valuecap(force=args.force)
     elif args.job == "trend": result = refresh_trend(force=args.force)

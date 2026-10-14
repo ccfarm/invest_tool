@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS sector_snapshots(id BIGSERIAL PRIMARY KEY,trade_date 
 CREATE TABLE IF NOT EXISTS oversold_snapshots(id BIGSERIAL PRIMARY KEY,trade_date TEXT UNIQUE,created_at TEXT,items TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS dividend_snapshots(id BIGSERIAL PRIMARY KEY,trade_date TEXT UNIQUE,created_at TEXT,items TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS valuecap_snapshots(id BIGSERIAL PRIMARY KEY,trade_date TEXT UNIQUE,created_at TEXT,items TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS strong_snapshots(id BIGSERIAL PRIMARY KEY,trade_date TEXT UNIQUE,created_at TEXT,items TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS newhigh_snapshots(id BIGSERIAL PRIMARY KEY,trade_date TEXT UNIQUE,created_at TEXT,items TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS users(id BIGSERIAL PRIMARY KEY,username TEXT NOT NULL UNIQUE,password_hash TEXT NOT NULL,created_at TEXT);
 CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY,username TEXT NOT NULL,created_at TEXT,expires_at TEXT);
 """

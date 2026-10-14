@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
+from functools import partial
 
 from .config import (
     DIVIDEND_INTERVAL,
@@ -15,6 +17,7 @@ from .config import (
 )
 from .crawler import crawl_market
 from .dividend import scheduled_dividend
+from .leaders import scheduled_leaders
 from .microcap import scheduled_microcap
 from .oversold import scheduled_oversold
 from .sector import scheduled_sectors
@@ -34,6 +37,11 @@ def loop(name: str, task, interval: int, delay: int) -> None:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     jobs=(("全市场股东",crawl_market,SCHEDULE_INTERVAL,60),("微盘股",scheduled_microcap,MICROCAP_INTERVAL,30),("低价稳健",scheduled_valuecap,VALUECAP_INTERVAL,40),("趋势",scheduled_trend,TREND_INTERVAL,45),("强势板块",scheduled_sectors,SECTOR_INTERVAL,75),("超跌板块",scheduled_oversold,OVERSOLD_INTERVAL,90),("红利低波",scheduled_dividend,DIVIDEND_INTERVAL,105))
+    jobs += tuple(
+        (kind, partial(scheduled_leaders, kind), 21600, delay)
+        for kind, delay in (("strong", 120), ("newhigh", 150))
+        if os.getenv(f"ENABLE_SCHEDULED_{kind.upper()}", "1") == "1"
+    )
     threads=[threading.Thread(target=loop,args=job,daemon=True,name=job[0]) for job in jobs]
     for thread in threads: thread.start()
     for thread in threads: thread.join()

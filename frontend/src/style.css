@@ -755,3 +755,6 @@ tbody tr:hover {
     gap: 12px;
   }
 }
+
+.leaders-themes { max-width: 28rem; white-space: normal; line-height: 1.7; }
+.leaders-note { color: var(--muted-foreground); font-size: 13px; margin-top: 16px; }
