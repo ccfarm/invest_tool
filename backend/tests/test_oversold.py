@@ -74,3 +74,57 @@ def test_screen_oversold_sorts_lowest_percentile_first(monkeypatch):
     result = oversold.screen_oversold(concurrency=1)
     assert [item["code"] for item in result["items"]] == ["BK0002", "BK0001"]
     assert [item["rank"] for item in result["items"]] == [1, 2]
+
+
+@pytest.mark.parametrize(
+    ("stamp", "should_run"),
+    [
+        ("2026-10-26T16:29:59", False),
+        ("2026-10-26T16:30:00", True),
+        ("2026-10-26T20:00:00", True),
+        ("2026-10-24T17:00:00", False),
+        ("2026-10-25T17:00:00", False),
+    ],
+)
+def test_scheduled_oversold_runs_after_weekday_close(monkeypatch, stamp, should_run):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    class Clock:
+        @staticmethod
+        def now(tz):
+            assert tz == ZoneInfo("Asia/Shanghai")
+            return datetime.fromisoformat(stamp).replace(tzinfo=tz)
+
+    calls = []
+    monkeypatch.setattr(oversold, "datetime", Clock)
+    monkeypatch.setattr(oversold, "refresh_oversold", lambda: calls.append(True) or {"ok": True})
+    result = oversold.scheduled_oversold()
+    assert bool(calls) == should_run
+    assert result == ({"ok": True} if should_run else {
+        "skipped": True, "reason": "等待工作日 16:30 后的收盘数据",
+    })
+
+
+def test_refresh_oversold_reuses_same_trade_date(monkeypatch):
+    monkeypatch.setattr(oversold, "get_last_trade_date", lambda: "2026-10-26")
+    monkeypatch.setattr(oversold, "get_oversold_snapshot", lambda day: {"items": []})
+    monkeypatch.setattr(oversold, "screen_oversold", lambda: pytest.fail("不应重复采集"))
+    assert oversold.refresh_oversold() == {
+        "trade_date": "2026-10-26", "reused": True, "items": [],
+    }
+
+
+def test_screen_oversold_keeps_snapshot_when_data_is_incomplete(monkeypatch):
+    monkeypatch.setattr(oversold, "get_last_trade_date", lambda: "2026-10-26")
+    monkeypatch.setattr(oversold, "fetch_industry_boards", lambda: [{"code": "BK0001"}])
+
+    def fail(board):
+        raise OSError("行情不可用")
+
+    monkeypatch.setattr(oversold, "evaluate_board", fail)
+    monkeypatch.setattr(
+        oversold, "save_oversold_snapshot", lambda *args: pytest.fail("不应覆盖已有快照"),
+    )
+    with pytest.raises(RuntimeError, match="有效行业数据不足"):
+        oversold.screen_oversold(concurrency=1)

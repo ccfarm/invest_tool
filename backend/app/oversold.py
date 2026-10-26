@@ -153,8 +153,8 @@ def refresh_oversold(force: bool = False) -> dict:
 
 def scheduled_oversold() -> dict:
     now = datetime.now(ZoneInfo("Asia/Shanghai"))
-    if now.weekday() < 5 and now.time() < time(15, 10):
-        return {"skipped": True, "reason": "等待当日收盘数据"}
+    if now.weekday() >= 5 or now.time() < time(16, 30):
+        return {"skipped": True, "reason": "等待工作日 16:30 后的收盘数据"}
     return refresh_oversold()
 
 
