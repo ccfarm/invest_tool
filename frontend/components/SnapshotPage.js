@@ -8,8 +8,9 @@ const boards = ['科创板', '创业板', '中小板', '主板']
 function boardForCode(code = '') {
   if (/^(688|689)/.test(code)) return '科创板'
   if (/^(300|301)/.test(code)) return '创业板'
-  if (/^(002|003)/.test(code)) return '中小板'
-  return '主板'
+  if (/^(000|001|002|003)/.test(code)) return '中小板'
+  if (/^(600|601|603|605)/.test(code)) return '主板'
+  return null
 }
 
 function changeClass(value) {
@@ -66,7 +67,11 @@ export default function SnapshotPage({ kind }) {
 
   const visibleItems = useMemo(() => {
     if (isTrend) return snapshot.items
-    return snapshot.items.filter(item => (item.board || boardForCode(item.code)) === activeBoard)
+    return snapshot.items
+      .filter(item => boardForCode(item.code) === activeBoard)
+      .sort((a, b) => a.mktcap_yi - b.mktcap_yi)
+      .slice(0, 10)
+      .map((item, index) => ({ ...item, rank: index + 1 }))
   }, [activeBoard, isTrend, snapshot.items])
 
   const average = !isTrend && visibleItems.length

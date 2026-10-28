@@ -326,14 +326,14 @@ BOARD_ORDER = ("科创板", "创业板", "中小板", "主板")
 
 
 def board_for_code(code: str) -> str | None:
-    """按股票代码归入页面展示板块；中小板沿用原 002/003 代码口径。"""
+    """按股票代码归入页面展示板块；中小板按页面约定收纳 000/001/002/003，主板仅含沪市。"""
     if code.startswith(("688", "689")):
         return "科创板"
     if code.startswith(("300", "301")):
         return "创业板"
-    if code.startswith(("002", "003")):
+    if code.startswith(("000", "001", "002", "003")):
         return "中小板"
-    if code.startswith(("600", "601", "603", "605", "000", "001")):
+    if code.startswith(("600", "601", "603", "605")):
         return "主板"
     return None
 
@@ -526,7 +526,11 @@ def refresh_microcap(force: bool = False) -> dict:
     """触发刷新：同日快照直接复用，旧版快照先补齐新增指标，否则重新筛选。"""
     trade_date = get_last_trade_date()
     existing = get_microcap_snapshot(trade_date)
-    if existing and not force:
+    if existing and not force and not any(
+        item.get("board") is not None
+        and item["board"] != board_for_code(item["code"])
+        for item in existing["items"]
+    ):
         items = existing["items"]
         needs_enrichment = any(
             "month_change_pct" not in item or "ths_concept_count" not in item

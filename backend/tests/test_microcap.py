@@ -162,3 +162,44 @@ def test_backfill_no_gap(monkeypatch):
 
     monkeypatch.setattr(microcap, "fetch_market_stocks_with_cap", should_not_fetch)
     assert microcap.backfill_microcap(days=5) == {"missing": [], "filled": []}
+
+
+@pytest.mark.no_db
+@pytest.mark.parametrize(
+    ("code", "board"),
+    [("000929", "中小板"), ("001001", "中小板"), ("002001", "中小板"),
+     ("003001", "中小板"), ("600001", "主板"), ("601001", "主板"),
+     ("603001", "主板"), ("605001", "主板"), ("688001", "科创板"),
+     ("689001", "科创板"), ("300001", "创业板"), ("301001", "创业板"),
+     ("920001", None)],
+)
+def test_board_code_groups(code, board):
+    assert microcap.board_for_code(code) == board
+
+
+@pytest.mark.no_db
+def test_screen_separates_lanzhou_from_shanghai(monkeypatch):
+    monkeypatch.setattr(microcap, "fetch_market_stocks_with_cap", lambda: [
+        _stock("000929", "兰州黄河", 100),
+        _stock("002001", "深市候选", 200),
+        _stock("600001", "沪市候选", 300, "SH"),
+    ])
+    monkeypatch.setattr(microcap, "get_blacklisted_codes", set)
+    monkeypatch.setattr(microcap, "check_announcement_risk", lambda code: None)
+    items, _ = microcap._screen_items(top_n=1)
+    assert [(item["board"], item["code"], item["rank"]) for item in items] == [
+        ("中小板", "000929", 1), ("主板", "600001", 1),
+    ]
+
+
+@pytest.mark.no_db
+def test_refresh_rebuilds_old_board_snapshot(monkeypatch):
+    monkeypatch.setattr(microcap, "get_last_trade_date", lambda: "2026-10-27")
+    monkeypatch.setattr(microcap, "get_microcap_snapshot", lambda date: {
+        "items": [{"code": "000929", "board": "主板"}],
+    })
+    monkeypatch.setattr(microcap, "screen_microcap", lambda: {
+        "trade_date": "2026-10-27", "items": [], "blacklisted": [],
+    })
+    monkeypatch.setattr(microcap, "save_microcap_snapshot", lambda *args: None)
+    assert microcap.refresh_microcap()["reused"] is False
