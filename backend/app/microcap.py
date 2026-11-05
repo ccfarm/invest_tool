@@ -35,7 +35,7 @@
      不再查公告、不再重复判断；"百年"= 永久生效（人工删除才解除）。
 
 5. ST 风险评估（公告排查）
-   - 对市值最低的候选池（默认前 100 只）逐只拉取最近公告
+   - 对市值最低的候选池（默认前 100 只）逐只拉取最近 200 条公告
      （东方财富公告接口 np-anotice-stock.eastmoney.com），只匹配标题关键词：
        · 退市风险警示 / 其他风险警示 / 实施风险警示
        · 被立案调查 / 立案调查
@@ -302,10 +302,10 @@ def enrich_microcap_items(items: list[dict], trade_date: str) -> list[dict]:
 
 
 def check_announcement_risk(code: str) -> str | None:
-    """拉取最近公告标题，命中风险关键词则返回关键词，否则 None。"""
+    """拉取最近 200 条公告标题，命中风险关键词则返回关键词，否则 None。"""
     params = {
         "sr": "-1",
-        "page_size": 20,
+        "page_size": 200,
         "page_index": 1,
         "ann_type": "A",
         "stock_list": code,

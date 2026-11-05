@@ -80,6 +80,8 @@ python -m app.scheduler
 
 ## API
 
+微盘股风险排查读取每只候选股票最近 200 条公告标题，匹配风险关键词。
+
 - `GET /api/health`
 - `GET /api/search?q=600519&page=1&page_size=20`
 - `GET|POST /api/pv`
